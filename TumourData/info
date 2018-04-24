@@ -1,0 +1,4 @@
+Here goes:
+- a folder containing several folders with an MRI scan each (filename.nii).
+  - Imgs + masks.
+- another folder with testdata
