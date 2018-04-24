@@ -226,7 +226,6 @@ class dataProcess(object):
 		Save them into .npy files.
 		"""
 		print('-'*30)
-		print("Entering function: Them who say Niiii: def create_train_data_nii(self):")
 		print('Loading training images and masks...')
 
 		i = 0
@@ -256,18 +255,39 @@ class dataProcess(object):
 			image_numpy_mask = image_nii_mask.get_data()
 			#print("shape img:      " + str(image_numpy.shape) + " shape mask: " + str(image_numpy_mask.shape))
 
-			image_numpy      = np.pad(image_numpy, ((22,22),(0,0),(0,0)), 'constant')
-			image_numpy_mask = np.pad(image_numpy_mask, ((22,22),(0,0),(0,0)), 'constant')
+
+			# Crop / pad / whatever must be done before zero-mean, as it'd affect it otherwise.
+			# No longer padded, as cropped instead.
+			# Pad from 276x320 to 320x320 so Conv layers divide evenly 4 times.
+			#image_numpy      = np.pad(image_numpy, ((22,22),(0,0),(0,0)), 'constant')
+			#image_numpy_mask = np.pad(image_numpy_mask, ((22,22),(0,0),(0,0)), 'constant')
 			#print("new: shape img: " + str(image_numpy.shape) + " shape mask: " + str(image_numpy_mask.shape))
 			
-			_, _, c1 = image_numpy.shape
-			_, _, c2 = image_numpy_mask.shape
+			# Crop img and mask to 256, keep centre portion of img, so cut off outside area.
+			print("=== === Img Shape before crop: " + str(image_numpy.shape))
+			a1, b1, c1 = image_numpy.shape
+			half_excess_a1 = int( (a1 - 256) / 2 )
+			half_excess_b1 = int( (b1 - 256) / 2 )
+			image_numpy = image_numpy[0+half_excess_a1:a1-half_excess_a1,
+									  0+half_excess_b1:b1-half_excess_b1,
+									  :] #not a smiley.
+			print("=== === Img Shape after crop:  " + str(image_numpy.shape))
+
+			print("=== === Mask Shape before crop: " + str(image_numpy_mask.shape))
+			a2, b2, c2 = image_numpy_mask.shape
+			half_excess_a2 = int( (a2 - 256) / 2 )
+			half_excess_b2 = int( (b2 - 256) / 2 )
+			image_numpy_mask = image_numpy_mask[0+half_excess_a2:a2-half_excess_a2,
+									  0+half_excess_b2:b2-half_excess_b2,
+									  :]
+			print("=== === Mask Shape after crop:  " + str(image_numpy_mask.shape))
+			
 			if c1 != c2:
 				print("SHIT'S ON FIRE, YO! Imgs and mask numbers not equal."*30)
 			
 			image_numpy = (image_numpy - mean(image_numpy)) / std(image_numpy)
-			print("image_numpy in data.py Max: " + str(np.max(np.array(image_numpy))))
-			print("image_numpy in data.py Min (negative): " + str(np.min(np.array(image_numpy))))
+			#print("image_numpy in data.py Max: " + str(np.max(np.array(image_numpy))))
+			#print("image_numpy in data.py Min (negative): " + str(np.min(np.array(image_numpy))))
 				
 
 
@@ -278,8 +298,8 @@ class dataProcess(object):
 				# We lose a dimension when we take out one slice. Return to dim1xdim2x1 shape.
 				#print("should be 320x320: " + str(image_numpy[:,:,x].shape))
 				img_train = img_to_array(image_numpy[:,:,x])
-				print("img_train in data.py Max: " + str(np.max(np.array(img_train))))
-				print("img_train in data.py Min (still negative?): " + str(np.min(np.array(img_train))))
+				#print("img_train in data.py Max: " + str(np.max(np.array(img_train))))
+				#print("img_train in data.py Min (still negative?): " + str(np.min(np.array(img_train))))
 
 				#print("should be 320x320x1: " + str(img_train.shape))
 				_, _, channel = img_train.shape
@@ -296,43 +316,11 @@ class dataProcess(object):
 				i += 1
 			
 
-			# load_img, img_to_array from keras
-			#img = load_img(self.train_path + "/" + midname,grayscale = True)
-			#label = load_img(self.label_path + "/" + midname,grayscale = True)
-			#img = img_to_array(img)
-			#label = img_to_array(label)
-			
-			# pad 0's because Conv2D cannot be allowed to get .5 values, as the upconv will not be same dim then
-			#img = np.pad(img, ((22,22),(0,0),(0,0)), 'constant')
-			#label = np.pad(label, ((22,22),(0,0),(0,0)), 'constant')
-
-			# Zero mean and unit standard deviatio
-			#sc = StandardScaler()
-			#img = sc.fit_transform(img)
-	        #imgs_test = sc.transform(imgs_test)
-
-			#print("label shape: ")
-			#print(label.shape)
-			#label_inverted = 1 - label #didnt change anything. model predicts all black anyway
-
-			# turned the img and label into numpy array of size (512,512,1)
-			# populate list with img array after img array
-			#imgdatas[i] = img
-			#imglabels[i] = label#label_inverted
-			
-			# Can save created numpy arrays as imgs to see whether they are fine. Looks fine so far.			
-			#img3 = array_to_img(img)
-			#img3.save("./tests/%d.jpg" % (i))
-			#img4 = array_to_img(label)
-			#img4.save("./tests/l%d.jpg" % (i))
-
 		print('Loaded {0}/{1} images.'.format(i, numOfImagesTotal))
 
 		np.save(self.npy_path + '/imgs_train.npy', imgdatas)
 		np.save(self.npy_path + '/imgs_mask_train.npy', imglabels)
-		print('Saving to .npy files done.')
-
-		print("Finished function: def create_train_data_nii(self):")
+		print('Saved train-data and masks to .npy file.')
 		print('-'*30)
 
 	def create_test_data_nii(self):
@@ -361,9 +349,18 @@ class dataProcess(object):
 		for patient_folder in patient_folders:
 			image_nii   = nibabel.load(parent_folder + patient_folder + '/' + 'flair_noskull.nii.gz')
 			image_numpy = image_nii.get_data()
-			image_numpy = np.pad(image_numpy, ((22,22),(0,0),(0,0)), 'constant')
-			_, _, c1 = image_numpy.shape
+			#image_numpy = np.pad(image_numpy, ((22,22),(0,0),(0,0)), 'constant')
+			a1, b1, c1 = image_numpy.shape
+			print("=== === Img Shape before crop: " + str(image_numpy.shape))
+			a1, b1, c1 = image_numpy.shape
+			half_excess_a1 = int( (a1 - 256) / 2 )
+			half_excess_b1 = int( (b1 - 256) / 2 )
+			image_numpy = image_numpy[0+half_excess_a1:a1-half_excess_a1,
+									  0+half_excess_b1:b1-half_excess_b1,
+									  :] #not a smiley.
+			print("=== === Img Shape after crop:  " + str(image_numpy.shape))
 			
+			# Zero-mean and unit standard deviation.
 			image_numpy = (image_numpy - mean(image_numpy)) / std(image_numpy)
 				
 
@@ -463,8 +460,8 @@ if __name__ == "__main__":
 	#aug.splitTransform()
 	print("\n")
 	print('='*30)
-	dim1 = 320
-	dim2 = 320
+	dim1 = 256
+	dim2 = 256
 	mydata = dataProcess(dim1,dim2)
 	print("Calling function .create_train_data()")
 	mydata.create_train_data_nii()

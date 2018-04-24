@@ -153,8 +153,12 @@ class myUnet(object):
         print("loading data")
         imgs_train, imgs_mask_train, imgs_test = self.load_data()
         print("loading data done")
-        #model = self.get_unet()
-        model = load_model('unet.hdf5')
+        
+        load_prev_model = 0
+        if load_prev_model == 0:
+            model = self.get_unet()
+        else:
+            model = load_model('unet.hdf5')
         print("got unet")
 
         model_checkpoint = ModelCheckpoint('unet.hdf5', 
@@ -172,8 +176,8 @@ class myUnet(object):
 
         model.fit(imgs_train, 
                 imgs_mask_train, 
-                batch_size=8, 
-                epochs=20, 
+                batch_size=4, 
+                epochs=1, 
                 verbose=1, 
                 validation_split=0.1, 
                 shuffle=True, 

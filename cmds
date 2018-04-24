@@ -1,2 +1,13 @@
 conda create -n unet python=3.5
-pip3 install -r req.txt
+source activate unet
+pip install -r req.txt
+pip3 install -r reqpip3.txt
+# fucking shit doesnt work yet
+pip install keras
+pip install tensorflow-gpu
+pip install nibabel
+
+
+git add .
+git commit -a -m "commit msg blabla" 
+git push
