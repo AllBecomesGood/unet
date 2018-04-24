@@ -68,6 +68,9 @@ currently crap
 * ```./TumourData```: Contains folders with MRI scans in .nii format.
 * ```./npydata```: Contains the ```.npy``` files generated from ```.tif``` images from our deform folder.
 * ```./results```: Outputs from our unet are saved in this folder.
+- a Folder called "results" where it stores the output prediction images.
+- a Folder called "npydata" where it stores the loaded images and masks as .npy files.
+- a Folder called "TumourData" where the MRI scan data is.
 
 ## From clone to your first results
 

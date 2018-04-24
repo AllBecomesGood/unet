@@ -1,6 +1,9 @@
 *.pyc
 *.hdf5
-/TumourData/*
-/results/*
-/npydata/*
+TumourData/*
+!TumourData/info
+results/*
+!results/info
+npydata/*
+!npydata/info
 /__pycache__/*
