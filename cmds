@@ -1,0 +1,2 @@
+conda create -n unet python=3.5
+pip3 install -r req.txt
