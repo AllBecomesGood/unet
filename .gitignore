@@ -1,3 +1,5 @@
 *.pyc
 *.hdf5
 /TumourData/*
+/results/*
+/npydata/*
