@@ -71,6 +71,8 @@ currently crap
 
 ## From clone to your first results
 
+Folder naming is different, but structure should be same.
+
 * After cloning this project the first step is loading up the TumourData folder. ```TumourData/train_nii/mriScan1/flair.nii.gz``` and ```TumourData/test_nii/mriScan1/flair.nii.gz``` also a ```/mask_flair.nii.gz```
 
 * ```python3 data.py``` to generate ```.npy``` files from your input data. This should produce 3 files in your ```./npydata``` folder.
