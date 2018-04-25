@@ -241,8 +241,8 @@ class dataProcess(object):
 		#print("num of slices total: " + str(numOfImagesTotal))
 		
 		# Create empty placeholder numpy array. (dim here: 30,512,512,1)
-		imgdatas = np.ndarray((numOfImagesTotal,self.out_rows,self.out_cols, 1), dtype=np.float32) #MondayNightTODO was ,1 dim
-		imglabels = np.ndarray((numOfImagesTotal,self.out_rows,self.out_cols, 1), dtype=np.uint8)#MondayNightTODO was ,1 dim
+		imgdatas = np.ndarray((numOfImagesTotal,self.out_rows,self.out_cols, 1), dtype=np.float32) 
+		imglabels = np.ndarray((numOfImagesTotal,self.out_rows,self.out_cols, 1), dtype=np.float32)#TODO: float32/uint8
 		
 		if i == 0:
 			print("# of folders/patients should be 35 (37-2test): " + str(len(patient_folders)))

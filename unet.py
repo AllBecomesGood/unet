@@ -3,7 +3,7 @@ import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 import numpy as np
 from keras.models import *
-from keras.layers import Input, merge, concatenate, Conv2D, MaxPooling2D, UpSampling2D, Dropout, Cropping2D
+from keras.layers import Input, merge, concatenate, Conv2D, MaxPooling2D, UpSampling2D, Dropout, Cropping2D, core
 from keras.optimizers import *
 from keras.callbacks import ModelCheckpoint, LearningRateScheduler
 from keras import backend as K
@@ -16,7 +16,7 @@ from keras.models import load_model
 class myUnet(object):
 
 	# set to img size
-    def __init__(self, img_rows=320, img_cols=320):
+    def __init__(self, img_rows=256, img_cols=256):
 
         self.img_rows = img_rows
         self.img_cols = img_cols
@@ -37,6 +37,191 @@ class myUnet(object):
     
     def dice_coef_loss(y_true, y_pred):
         return -dice_coef(y_true, y_pred)
+
+    def get_unet2(self):
+
+        input1 = Input((self.img_rows, self.img_cols, 1)) #, 1)) #MondayNightTODO
+        
+        feature_amount = 32
+        conv1 = Conv2D(feature_amount, 3, activation='relu', padding='same', kernel_initializer='he_normal')(input1)
+        conv1 = Conv2D(feature_amount, 3, activation='relu', padding='same', kernel_initializer='he_normal')(conv1)
+        pool1 = MaxPooling2D(pool_size=(2, 2))(conv1)
+
+        conv2 = Conv2D(feature_amount*2, 3, activation='relu', padding='same', kernel_initializer='he_normal')(pool1)
+        conv2 = Conv2D(feature_amount*2, 3, activation='relu', padding='same', kernel_initializer='he_normal')(conv2)
+        pool2 = MaxPooling2D(pool_size=(2, 2))(conv2)
+
+        conv3 = Conv2D(feature_amount*4, 3, activation='relu', padding='same', kernel_initializer='he_normal')(pool2)
+        conv3 = Conv2D(feature_amount*4, 3, activation='relu', padding='same', kernel_initializer='he_normal')(conv3)
+        pool3 = MaxPooling2D(pool_size=(2, 2))(conv3)
+
+        # =============
+        conv4 = Conv2D(feature_amount*8, 3, activation='relu', padding='same', kernel_initializer='he_normal')(pool3)
+        conv4 = Conv2D(feature_amount*8, 3, activation='relu', padding='same', kernel_initializer='he_normal')(conv4)
+        drop4 = Dropout(0.5)(conv4)
+        #pool4 = MaxPooling2D(pool_size=(2, 2))(drop4)
+
+        #conv5 = Conv2D(1024, 3, activation='relu', padding='same', kernel_initializer='he_normal')(pool4)
+        #conv5 = Conv2D(1024, 3, activation='relu', padding='same', kernel_initializer='he_normal')(conv5)
+        #drop5 = Dropout(0.5)(conv5)
+
+        #up6 = Conv2D(512, 2, activation='relu', padding='same', kernel_initializer='he_normal')(UpSampling2D(size=(2, 2))(drop5))
+        #merge6 = concatenate([drop4, up6], axis=3)
+        #conv6 = Conv2D(512, 3, activation='relu', padding='same', kernel_initializer='he_normal')(merge6)
+        #conv6 = Conv2D(512, 3, activation='relu', padding='same', kernel_initializer='he_normal')(conv6)
+
+        # ============
+        up7 = Conv2D(feature_amount*4, 2, activation='relu', padding='same', kernel_initializer='he_normal')(UpSampling2D(size=(2, 2))(drop4))
+        merge7 = concatenate([conv3, up7], axis=3)
+        conv7 = Conv2D(feature_amount*4, 3, activation='relu', padding='same', kernel_initializer='he_normal')(merge7)
+        conv7 = Conv2D(feature_amount*4, 3, activation='relu', padding='same', kernel_initializer='he_normal')(conv7)
+
+        up8 = Conv2D(feature_amount*2, 2, activation='relu', padding='same', kernel_initializer='he_normal')(UpSampling2D(size=(2, 2))(conv7))
+        merge8 = concatenate([conv2, up8], axis=3)
+        conv8 = Conv2D(feature_amount*2, 3, activation='relu', padding='same', kernel_initializer='he_normal')(merge8)
+        conv8 = Conv2D(feature_amount*2, 3, activation='relu', padding='same', kernel_initializer='he_normal')(conv8)
+
+        up9 = Conv2D(feature_amount, 2, activation='relu', padding='same', kernel_initializer='he_normal')(UpSampling2D(size=(2, 2))(conv8))
+        merge9 = concatenate([conv1, up9], axis=3)
+        conv9 = Conv2D(feature_amount, 3, activation='relu', padding='same', kernel_initializer='he_normal')(merge9)
+        conv9 = Conv2D(feature_amount, 3, activation='relu', padding='same', kernel_initializer='he_normal')(conv9)
+        conv9 = Conv2D(2, 3, activation='relu', padding='same', kernel_initializer='he_normal')(conv9)
+        conv10 = Conv2D(1, 1, activation='sigmoid')(conv9)
+        
+    
+
+        model = Model(inputs=input1, outputs=conv10)
+        #model = Model(inputs=input1, outputs=conv9)
+        #asdf = dice_coef(y_true, y_pred)
+        #dice_fn = dicee()
+
+
+        #dloss = dice_coef()
+        #d     = dice_coef_loss()
+
+        
+        lr = 1e-07
+        print(str(lr) + " Learning rate.")
+        loss = 1
+        if loss==0:
+            print("Loss: binary_crossentropy.")
+            model.compile(optimizer=Adam(lr=lr),
+                          loss=['binary_crossentropy'],
+                          metrics=['accuracy'])
+                          #sample_weight_mode='temporal') 
+        elif loss==1:
+            print("Loss: dice_coef_loss.")
+            model.compile(optimizer=Adam(lr=lr), 
+                          loss=dice_coef_loss,
+                          metrics=['accuracy'])
+
+        return model
+
+    def get_unet3(self):
+
+        print("HELLO?")
+        input1 = Input((self.img_rows, self.img_cols, 1)) #, 1)) #MondayNightTODO
+        
+        conv1 = Conv2D(64, 3, activation='relu', padding='same', kernel_initializer='he_normal')(input1)
+        conv1 = Dropout(0.2)(conv1)
+        conv1 = Conv2D(64, 3, activation='relu', padding='same', kernel_initializer='he_normal')(conv1)
+
+        pool1 = MaxPooling2D(pool_size=(2, 2))(conv1)
+        #
+        conv2 = Conv2D(128, 3, activation='relu', padding='same', kernel_initializer='he_normal')(pool1)
+        conv2 = Dropout(0.2)(conv2)
+        conv2 = Conv2D(128, 3, activation='relu', padding='same', kernel_initializer='he_normal')(conv2)
+        
+        pool2 = MaxPooling2D(pool_size=(2, 2))(conv2)
+        #
+        conv3 = Conv2D(256, 3, activation='relu', padding='same', kernel_initializer='he_normal')(pool2)
+        conv3 = Dropout(0.2)(conv3)
+        conv3 = Conv2D(256, 3, activation='relu', padding='same', kernel_initializer='he_normal')(conv3)
+
+        pool3 = MaxPooling2D(pool_size=(2, 2))(conv3)
+        #
+        conv4 = Conv2D(512, 3, activation='relu', padding='same', kernel_initializer='he_normal')(pool3)
+        conv4 = Dropout(0.2)(conv4)
+        conv4 = Conv2D(512, 3, activation='relu', padding='same', kernel_initializer='he_normal')(conv4)
+        
+        pool4 = MaxPooling2D(pool_size=(2, 2))(conv4)
+        #
+        conv5 = Conv2D(1024, 3, activation='relu', padding='same', kernel_initializer='he_normal')(pool4)
+        conv5 = Dropout(0.2)(conv5)
+        conv5 = Conv2D(1024, 3, activation='relu', padding='same', kernel_initializer='he_normal')(conv5)
+        
+
+        # The green arrow.
+        up6    = UpSampling2D(size=(2, 2))(conv5)
+        #up6    = Conv2D(512, 2, activation='relu', padding='same', kernel_initializer='he_normal')(up6)
+        # The grey arrow.
+        merge6 = concatenate([conv4, up6], axis=3)
+        # 2 times purple arrow.
+        conv6  = Conv2D(512, 3, activation='relu', padding='same', kernel_initializer='he_normal')(merge6)
+        conv6 = Dropout(0.2)(conv6)
+        conv6  = Conv2D(512, 3, activation='relu', padding='same', kernel_initializer='he_normal')(conv6)
+
+
+        #
+        up7    = UpSampling2D(size=(2, 2))(conv6)
+        #up7    = Conv2D(256, 2, activation='relu', padding='same', kernel_initializer='he_normal')(up7)
+        merge7 = concatenate([conv3, up7], axis=3)
+        conv7  = Conv2D(256, 3, activation='relu', padding='same', kernel_initializer='he_normal')(merge7)
+        conv7  = Dropout(0.2)(conv7)
+        conv7  = Conv2D(256, 3, activation='relu', padding='same', kernel_initializer='he_normal')(conv7)
+        #
+        up8    = UpSampling2D(size=(2, 2))(conv7)
+        #up8    = Conv2D(128, 2, activation='relu', padding='same', kernel_initializer='he_normal')(up8)
+        merge8 = concatenate([conv2, up8], axis=3)
+        conv8  = Conv2D(128, 3, activation='relu', padding='same', kernel_initializer='he_normal')(merge8)
+        conv8  = Dropout(0.2)(conv8)
+        conv8  = Conv2D(128, 3, activation='relu', padding='same', kernel_initializer='he_normal')(conv8)
+        #
+        up9    = UpSampling2D(size=(2, 2))(conv8)
+        #up9    = Conv2D(64, 2, activation='relu', padding='same', kernel_initializer='he_normal')(up9)
+        merge9 = concatenate([conv1, up9], axis=3)
+        conv9  = Conv2D(64, 3, activation='relu', padding='same', kernel_initializer='he_normal')(merge9)
+        conv9  = Dropout(0.2)(conv9)
+        conv9  = Conv2D(64, 3, activation='relu', padding='same', kernel_initializer='he_normal')(conv9)
+        #
+        conv9  = Conv2D(2, 3, activation='relu', padding='same', kernel_initializer='he_normal')(conv9)
+        conv10 = Conv2D(1, 1, activation='relu', padding='same', kernel_initializer='he_normal')(conv9)
+        ##conv10 = Conv2D(1, 1, activation='sigmoid')(conv9)
+        
+        #conv10 = Conv2D(2, 1, activation='relu', padding='same', kernel_initializer='he_normal')(conv9)
+        #conv10 = core.Reshape((2, self.img_rows*self.img_cols))(conv10)
+        #conv10 = core.Permute((2,1))(conv10)
+
+        #print("conv10.shape: " + str(conv10.shape))
+        #conv11 = core.Activation('softmax')(conv10)
+
+    
+
+        model = Model(inputs=input1, outputs=conv10)
+
+        lr = 1e-04
+        print(str(lr) + " Learning rate.")
+        loss = 1
+        if loss==0:
+            print("Loss: binary_crossentropy.")
+            model.compile(optimizer=Adam(lr=lr),
+                          loss=['binary_crossentropy'],
+                          metrics=['accuracy'])
+                          #sample_weight_mode='temporal') 
+        elif loss==1:
+            print("Loss: dice_coef_loss.")
+            model.compile(optimizer=Adam(lr=lr), 
+                          loss=dice_coef_loss,
+                          metrics=['accuracy'])
+        elif loss==2:
+            print("Loss: categorical_crossentropy.")
+            sgd = SGD(lr=0.01, decay=1e-6, momentum=0.3, nesterov=False)
+            model.compile(optimizer=sgd,
+                          loss='categorical_crossentropy',
+                          metrics=['accuracy'])
+
+        return model
+        # End Unet3.
 
     def get_unet(self):
 
@@ -131,11 +316,20 @@ class myUnet(object):
         #d     = dice_coef_loss()
 
         
-
-        model.compile(optimizer=Adam(lr=0.001),#Adam(lr=1e-5), 
-                    loss=['binary_crossentropy'], #, dice_coef_loss
-                    metrics=['accuracy'])#[dice_coef])#,
-                    #sample_weight_mode='temporal') #loss=dice_coef_loss, 
+        lr = 1e-08
+        print(str(lr) + " Learning rate.")
+        loss = 1
+        if loss==0:
+            print("Loss: binary_crossentropy.")
+            model.compile(optimizer=Adam(lr=lr),
+                          loss=['binary_crossentropy'],
+                          metrics=['accuracy'])
+                          #sample_weight_mode='temporal') 
+        elif loss==1:
+            print("Loss: dice_coef_loss.")
+            model.compile(optimizer=Adam(lr=lr), 
+                          loss=dice_coef_loss,
+                          metrics=['accuracy'])
 
         return model
 
@@ -154,12 +348,22 @@ class myUnet(object):
         imgs_train, imgs_mask_train, imgs_test = self.load_data()
         print("loading data done")
         
-        load_prev_model = 0
+        load_prev_model = 3
         if load_prev_model == 0:
             model = self.get_unet()
-        else:
-            model = load_model('unet.hdf5')
-        print("got unet")
+            print("Created orig. Unet.")
+        elif load_prev_model == 1:
+            model = load_model('unet.hdf5', custom_objects={'dice_coef_loss': dice_coef_loss})
+            print("Loaded Unet.")
+        elif load_prev_model == 2:
+            model = self.get_unet2()
+            print("Created smaller Unet.")
+        elif load_prev_model == 3:
+            #imgs_mask_train = core.Reshape((2, self.img_rows*self.img_cols))(imgs_mask_train)
+            #imgs_mask_train = core.Permute((2,1))(imgs_mask_train)
+            model = self.get_unet3()
+            print("Created Unet3.")
+        
 
         model_checkpoint = ModelCheckpoint('unet.hdf5', 
                                             monitor='loss', 
@@ -172,16 +376,55 @@ class myUnet(object):
         #class_weights[:, 0] += 0.05
         #class_weights[:, 1] += 0.95
 
-        
+        # LET'S EXPERIMENT WITH DATA AUGMENTATION YAY.
+        augment = False
+        if augment==True:
+            data_gen_args = dict(featurewise_center=False, #TODO do i need or not? is it all data or just generated data?
+                                 featurewise_std_normalization=False,
+                                 rotation_range=20.)#,
+                                 #width_shift_range=0.1,
+                                 #height_shift_range=0.1,
+                                 #zoom_range=0.15)
+            image_datagen = ImageDataGenerator(**data_gen_args)
+            mask_datagen = ImageDataGenerator(**data_gen_args)
 
-        model.fit(imgs_train, 
-                imgs_mask_train, 
-                batch_size=4, 
-                epochs=1, 
-                verbose=1, 
-                validation_split=0.1, 
-                shuffle=True, 
-                callbacks=[model_checkpoint])#,
+            # Provide the same seed and keyword arguments to the fit and flow methods
+            seed = 1
+            image_datagen.fit(imgs_train, augment=True, seed=seed)
+            mask_datagen.fit(imgs_mask_train, augment=True, seed=seed)
+
+            image_generator = image_datagen.flow(imgs_train,
+                                                 seed=seed)#,
+                                                 #save_to_dir="./augment/img/")
+            mask_generator = mask_datagen.flow(imgs_mask_train,
+                                               seed=seed)#,
+                                               #save_to_dir="./augment/mask/")
+
+            # combine generators into one which yields image and masks
+            train_generator = zip(image_generator, mask_generator) #todo
+
+            # END DATA AUGMENTATION SADFACE.
+
+        epochs = 5
+        batch_size = 8
+        #augment git gen function instead of fit
+        if augment==True:
+            model.fit_generator(train_generator,
+                                steps_per_epoch=1395/batch_size,
+                                epochs=epochs,
+                                verbose=1)#,
+                                #max_queue_size=10)
+        else:
+            print("model.fit: imgs_train.shape: " + str(imgs_train.shape))
+            print("model.fit: imgs_mask_train.shape: " + str(imgs_mask_train.shape))
+            model.fit(imgs_train, 
+                      imgs_mask_train, 
+                      batch_size=batch_size, 
+                      epochs=epochs, 
+                      verbose=1, 
+                      validation_split=0.1, 
+                      shuffle=True)#, 
+                    #callbacks=[model_checkpoint])#,
                 #sample_weight = class_weights)
 
                     #, class_weight = {0:1, 1:100}
@@ -194,16 +437,14 @@ class myUnet(object):
 
         print("array to image")
         imgs = np.load('./results/imgs_mask_test.npy')
+        print("test result imgs Max: " + str(np.max(np.array(imgs))))
+        print("test result imgs Min: " + str(np.min(np.array(imgs))))
         #print("shape should be 320x320xsomething" + str(imgs.shape)) # Seems to be correct.
         #print("should equal amount of images: " + str(imgs.shape[0]))
         for i in range(imgs.shape[0]):
             img = imgs[i]
-            if i == 30:
-                print("img in unet.py Max: " + str(np.max(np.array(img))))
-                print("img in unet.py Min: " + str(np.min(np.array(img))))
-                print(img.shape)
             if np.isnan(np.sum(img)):
-                print("NANI?")
+                print("nan - not a number?")
 
             img = array_to_img(img)
             #print(img.size)
