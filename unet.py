@@ -38,9 +38,77 @@ class myUnet(object):
     def dice_coef_loss(y_true, y_pred):
         return -dice_coef(y_true, y_pred)
 
+    def get_unet_hao(self):
+        img_in = Input((self.img_rows, self.img_cols, 1))
+        
+        feature_amount = 32
+        conv1 = Conv2D(feature_amount, (3,3), activation='relu', padding='same', kernel_initializer='he_normal')(img_in)
+        conv1 = Conv2D(feature_amount, (3,3), activation='relu', padding='same', kernel_initializer='he_normal')(conv1)
+        pool1 = MaxPooling2D(pool_size=(2, 2))(conv1)
+        # ---
+        conv2 = Conv2D(feature_amount*2, (3,3), activation='relu', padding='same', kernel_initializer='he_normal')(pool1)
+        conv2 = Conv2D(feature_amount*2, (3,3), activation='relu', padding='same', kernel_initializer='he_normal')(conv2)
+        pool2 = MaxPooling2D(pool_size=(2, 2))(conv2)
+        # ---
+        conv3 = Conv2D(feature_amount*4, (3,3), activation='relu', padding='same', kernel_initializer='he_normal')(pool2)
+        conv3 = Conv2D(feature_amount*4, (3,3), activation='relu', padding='same', kernel_initializer='he_normal')(conv3)
+        pool3 = MaxPooling2D(pool_size=(2, 2))(conv3)
+        # ---
+        conv4 = Conv2D(feature_amount*8, (3,3), activation='relu', padding='same', kernel_initializer='he_normal')(pool3)
+        conv4 = Conv2D(feature_amount*8, (3,3), activation='relu', padding='same', kernel_initializer='he_normal')(conv4)
+        pool4 = MaxPooling2D(pool_size=(2, 2))(conv4)
+
+        # --- lowest layer.
+        conv5 = Conv2D(feature_amount*16, (3,3), activation='relu', padding='same', kernel_initializer='he_normal')(pool4)
+        conv5 = Conv2D(feature_amount*16, (3,3), activation='relu', padding='same', kernel_initializer='he_normal')(conv5)
+        # --- and back up.
+
+        # Upsample previous convo layer.
+        up5       = UpSampling2D(size=(2, 2))(conv5)
+        # 2x2-Convolute the upsample.
+        conv_up5  = Conv2D(feature_amount*8, (2,2), activation='relu', padding='same', kernel_initializer='he_normal')(up5)
+        # Concatenate convoluted upsampled convo with same sized convo from down path.
+        concat5_4 = concatenate([conv_up5, conv4], axis=3)
+        # 2 3x3 convos
+        conv6     = Conv2D(feature_amount*8, (3,3), activation='relu', padding='same', kernel_initializer='he_normal')(concat5_4)
+        conv6     = Conv2D(feature_amount*8, (3,3), activation='relu', padding='same', kernel_initializer='he_normal')(conv6)
+        # ---
+        up6       = UpSampling2D(size=(2, 2))(conv6)
+        conv_up6  = Conv2D(feature_amount*4, (2,2), activation='relu', padding='same', kernel_initializer='he_normal')(up6)
+        concat6_3 = concatenate([conv_up6, conv3], axis=3)
+        conv7     = Conv2D(feature_amount*4, (3,3), activation='relu', padding='same', kernel_initializer='he_normal')(concat6_3)
+        conv7     = Conv2D(feature_amount*4, (3,3), activation='relu', padding='same', kernel_initializer='he_normal')(conv7)
+        # ---
+        up7       = UpSampling2D(size=(2, 2))(conv7)
+        conv_up7  = Conv2D(feature_amount*2, (2,2), activation='relu', padding='same', kernel_initializer='he_normal')(up7)
+        concat7_2 = concatenate([conv_up7, conv2], axis=3)
+        conv8     = Conv2D(feature_amount*2, (3,3), activation='relu', padding='same', kernel_initializer='he_normal')(concat7_2)
+        conv8     = Conv2D(feature_amount*2, (3,3), activation='relu', padding='same', kernel_initializer='he_normal')(conv8)
+        # ---
+        up8       = UpSampling2D(size=(2, 2))(conv8)
+        conv_up8  = Conv2D(feature_amount, (2,2), activation='relu', padding='same', kernel_initializer='he_normal')(up8)
+        concat8_1 = concatenate([conv_up8, conv1], axis=3)
+        conv9     = Conv2D(feature_amount, (3,3), activation='relu', padding='same', kernel_initializer='he_normal')(concat8_1)
+        conv9     = Conv2D(feature_amount, (3,3), activation='relu', padding='same', kernel_initializer='he_normal')(conv9)
+
+        img_out   = Conv2D(1, (1,1), activation='sigmoid')(conv9)
+
+        # Get Model ready and compile.
+        model = Model(input=img_in, output=img_out)
+        lr = 1e-04
+        loss = dice_coef_loss
+        accuracy = 'accuracy'
+        model.compile(optimizer=Adam(lr=lr),
+                      loss=loss,
+                      metrics=[accuracy])
+        print("=== Model Specs: LR: " + str(lr) + " === Loss: " + str(loss) + " === Metric: " + str(accuracy) + " ===")
+        return model
+
+        # End of function.
+        
     def get_unet2(self):
 
-        input1 = Input((self.img_rows, self.img_cols, 1)) #, 1)) #MondayNightTODO
+        input1 = Input((self.img_rows, self.img_cols, 1))
         
         feature_amount = 32
         conv1 = Conv2D(feature_amount, 3, activation='relu', padding='same', kernel_initializer='he_normal')(input1)
@@ -327,41 +395,50 @@ class myUnet(object):
         return model
 
 
-    def train(self):
+    def train(self, epochs, which_model, batch_size):
 
-        print("loading data")
+        print("Loading data for training and testing...", end="")
         imgs_train, imgs_mask_train, imgs_test = self.load_data()
-        print("loading data done")
+        print("... done.")
         
-        load_prev_model = 0
+        print("Getting model...")
+        load_prev_model = which_model
         if load_prev_model == 0:
+            model = load_model('unet.hdf5', custom_objects={'dice_coef_loss': dice_coef_loss})
+            print("Loaded model from hdf5.")
+
+        elif load_prev_model == 1:
             model = self.get_unet()
             print("Created orig. Unet.")
-        elif load_prev_model == 1:
-            model = load_model('unet.hdf5', custom_objects={'dice_coef_loss': dice_coef_loss})
-            print("Loaded Unet.")
+
         elif load_prev_model == 2:
             model = self.get_unet2()
             print("Created smaller Unet.")
+
         elif load_prev_model == 3:
             #imgs_mask_train = core.Reshape((2, self.img_rows*self.img_cols))(imgs_mask_train)
             #imgs_mask_train = core.Permute((2,1))(imgs_mask_train)
             model = self.get_unet3()
             print("Created Unet3.")
+
+        elif load_prev_model == 4:
+            model = self.get_unet_hao()
+            print("Created Unet_hao.")
         
 
         model_checkpoint = ModelCheckpoint('unet.hdf5', 
                                             monitor='loss', 
                                             verbose=1, 
                                             save_best_only=False)
-        print('Fitting model...')
+        
         
         # 1436 images
         #class_weights = np.zeros((1436, 102400))
         #class_weights[:, 0] += 0.05
         #class_weights[:, 1] += 0.95
 
-        # LET'S EXPERIMENT WITH DATA AUGMENTATION YAY.
+        print('Fitting model...')
+        # LET'S EXPERIMENT WITH DATA AUGMENTATION YAY. This does not work. TODO
         augment = False
         if augment==True:
             data_gen_args = dict(featurewise_center=False, #TODO do i need or not? is it all data or just generated data?
@@ -390,8 +467,8 @@ class myUnet(object):
 
             # END DATA AUGMENTATION SADFACE.
 
-        epochs = 2
-        batch_size = 8
+        epochs = epochs
+        batch_size = batch_size
         #augment git gen function instead of fit
         if augment==True:
             model.fit_generator(train_generator,
@@ -400,8 +477,8 @@ class myUnet(object):
                                 verbose=1)#,
                                 #max_queue_size=10)
         else:
-            print("model.fit: imgs_train.shape: " + str(imgs_train.shape))
-            print("model.fit: imgs_mask_train.shape: " + str(imgs_mask_train.shape))
+            print("model.fit input: imgs_train.shape: " + str(imgs_train.shape))
+            print("model.fit input: imgs_mask_train.shape: " + str(imgs_mask_train.shape))
             model.fit(imgs_train, 
                       imgs_mask_train, 
                       batch_size=batch_size, 
@@ -411,12 +488,19 @@ class myUnet(object):
                       shuffle=True)#, 
                     #callbacks=[model_checkpoint])#,
                 #sample_weight = class_weights)
-
                     #, class_weight = {0:1, 1:100}
 
-        print('predict test data')
+        pred_test_data(imgs_test) # Predict and write to numpy file.
+        
+        # End of function.
+
+    def pred_test_data():
+        print('Predicting test data...')
         imgs_mask_test = model.predict(imgs_test, batch_size=1, verbose=1)
         np.save('./results/imgs_mask_test.npy', imgs_mask_test)
+        print('... done.')
+
+        # End of function.
 
     def save_img(self):
 
@@ -438,5 +522,12 @@ class myUnet(object):
 
 if __name__ == '__main__':
     myunet = myUnet()
-    myunet.train()
+    #def train(self, epochs, which_model, batch_size):
+    myunet.train(1, 4, 8)
     myunet.save_img()
+    print("Go check output images." * 5)
+
+    for run_number in range(1,11)
+        myunet.train(1, 0, 8) #0 = load from hdf5
+        myunet.save_img()
+        print("Go check output images." * 5 + "Epochs done: " + str(run_number+1))
