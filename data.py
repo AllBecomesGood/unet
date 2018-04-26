@@ -228,6 +228,8 @@ class dataProcess(object):
 		print('-'*30)
 		print('Loading training images and masks...')
 
+		rotate_3_times = 1
+
 		i = 0
 		# Load the images.
 		parent_folder = './TumourData/Kurtosis_Gliomas_nii/'
@@ -240,6 +242,9 @@ class dataProcess(object):
 			numOfImagesTotal += num_of_slices
 		#print("num of slices total: " + str(numOfImagesTotal))
 		
+		if rotate_3_times == 1:
+			numOfImagesTotal = numOfImagesTotal * 4
+
 		# Create empty placeholder numpy array. (dim here: 30,512,512,1)
 		imgdatas = np.ndarray((numOfImagesTotal,self.out_rows,self.out_cols, 1), dtype=np.float32) 
 		imglabels = np.ndarray((numOfImagesTotal,self.out_rows,self.out_cols, 1), dtype=np.float32)#TODO: float32/uint8
@@ -253,34 +258,22 @@ class dataProcess(object):
 			image_nii_mask   = nibabel.load(parent_folder + patient_folder + '/' + 'FLAIR_mask.nii.gz')
 			image_numpy      = image_nii.get_data()
 			image_numpy_mask = image_nii_mask.get_data()
-			#print("shape img:      " + str(image_numpy.shape) + " shape mask: " + str(image_numpy_mask.shape))
-
 
 			# Crop / pad / whatever must be done before zero-mean, as it'd affect it otherwise.
-			# No longer padded, as cropped instead.
-			# Pad from 276x320 to 320x320 so Conv layers divide evenly 4 times.
-			#image_numpy      = np.pad(image_numpy, ((22,22),(0,0),(0,0)), 'constant')
-			#image_numpy_mask = np.pad(image_numpy_mask, ((22,22),(0,0),(0,0)), 'constant')
-			#print("new: shape img: " + str(image_numpy.shape) + " shape mask: " + str(image_numpy_mask.shape))
-			
 			# Crop img and mask to 256, keep centre portion of img, so cut off outside area.
-			print("=== === Img Shape before crop: " + str(image_numpy.shape))
 			a1, b1, c1 = image_numpy.shape
 			half_excess_a1 = int( (a1 - 256) / 2 )
 			half_excess_b1 = int( (b1 - 256) / 2 )
 			image_numpy = image_numpy[0+half_excess_a1:a1-half_excess_a1,
 									  0+half_excess_b1:b1-half_excess_b1,
 									  :] #not a smiley.
-			print("=== === Img Shape after crop:  " + str(image_numpy.shape))
 
-			print("=== === Mask Shape before crop: " + str(image_numpy_mask.shape))
 			a2, b2, c2 = image_numpy_mask.shape
 			half_excess_a2 = int( (a2 - 256) / 2 )
 			half_excess_b2 = int( (b2 - 256) / 2 )
 			image_numpy_mask = image_numpy_mask[0+half_excess_a2:a2-half_excess_a2,
 									  0+half_excess_b2:b2-half_excess_b2,
 									  :]
-			print("=== === Mask Shape after crop:  " + str(image_numpy_mask.shape))
 			
 			if c1 != c2:
 				print("SHIT'S ON FIRE, YO! Imgs and mask numbers not equal."*30)
@@ -295,31 +288,56 @@ class dataProcess(object):
 				# zero mean and unit standard deviation
 				#image_numpy[:,:,x] = (image_numpy[:,:,x] - mean(image_numpy[:,:,x])) / std(image_numpy[:,:,x])
 				
-				# We lose a dimension when we take out one slice. Return to dim1xdim2x1 shape.
-				#print("should be 320x320: " + str(image_numpy[:,:,x].shape))
-				img_train = img_to_array(image_numpy[:,:,x])
-				#print("img_train in data.py Max: " + str(np.max(np.array(img_train))))
-				#print("img_train in data.py Min (still negative?): " + str(np.min(np.array(img_train))))
+				if rotate_3_times == 0:
+					# We lose a dimension when we take out one slice ie [:,:,x]. 
+					# Return to dim1xdim2x1 shape via img_to_array()
+					img_train = img_to_array(image_numpy[:,:,x])
+					mask = img_to_array(image_numpy_mask[:,:,x])
+					
+					imgdatas[i]  = img_train
+					imglabels[i] = mask
+					i += 1
+				elif rotate_3_times == 1:
+					# We lose a dimension when we take out one slice. Return to dim1xdim2x1 shape.
+					img_train = img_to_array(image_numpy[:,:,x])
+					img_train_rota1 = img_to_array( np.rot90(image_numpy[:,:,x]) )
+					img_train_rota2 = img_to_array( np.rot90(image_numpy[:,:,x], 2) )
+					img_train_rota3 = img_to_array( np.rot90(image_numpy[:,:,x], 3) )
 
-				#print("should be 320x320x1: " + str(img_train.shape))
+					mask = img_to_array(image_numpy_mask[:,:,x])
+					mask_rota1 = img_to_array( np.rot90(image_numpy_mask[:,:,x]) )
+					mask_rota2 = img_to_array( np.rot90(image_numpy_mask[:,:,x], 2) )
+					mask_rota3 = img_to_array( np.rot90(image_numpy_mask[:,:,x], 3) )
+
+					imgdatas[i]  = img_train
+					imglabels[i] = mask
+					i += 1
+					imgdatas[i]  = img_train_rota1
+					imglabels[i] = mask_rota1
+					i += 1
+					imgdatas[i]  = img_train_rota2
+					imglabels[i] = mask_rota2
+					i += 1
+					imgdatas[i]  = img_train_rota3
+					imglabels[i] = mask_rota3
+					i += 1
+
+
 				_, _, channel = img_train.shape
+				_, _, channel_mask = mask.shape
 				if channel != 1:
 					print("!!! Wrong Channel! !!! e444")
-
-				imgdatas[i]  = img_train
-				mask = img_to_array(image_numpy_mask[:,:,x])
-				_, _, channel_mask = mask.shape
 				if channel_mask != 1:
 					print("!!! Wrong Channel! !!! e445")
-				imglabels[i] = mask
-				#print("boinkkk")
-				i += 1
 			
 
 		print('Loaded {0}/{1} images.'.format(i, numOfImagesTotal))
 
 		np.save(self.npy_path + '/imgs_train.npy', imgdatas)
 		np.save(self.npy_path + '/imgs_mask_train.npy', imglabels)
+
+		print("imgdatas.shape: " + str(imgdatas.shape))
+		print("imglabels.shape: " + str(imglabels.shape))
 		print('Saved train-data and masks to .npy file.')
 		print('-'*30)
 
@@ -471,3 +489,25 @@ if __name__ == "__main__":
 	print("\n")
 	#imgs_train,imgs_mask_train = mydata.load_train_data()
 	#print imgs_train.shape,imgs_mask_train.shape
+
+
+
+
+
+
+"""Old unused and unloved code and things.
+
+
+# No longer padded, as cropped instead.
+			# Pad from 276x320 to 320x320 so Conv layers divide evenly 4 times.
+			#image_numpy      = np.pad(image_numpy, ((22,22),(0,0),(0,0)), 'constant')
+			#image_numpy_mask = np.pad(image_numpy_mask, ((22,22),(0,0),(0,0)), 'constant')
+			#print("new: shape img: " + str(image_numpy.shape) + " shape mask: " + str(image_numpy_mask.shape))
+
+
+
+
+
+
+"""
+

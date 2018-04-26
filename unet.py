@@ -199,7 +199,7 @@ class myUnet(object):
 
         model = Model(inputs=input1, outputs=conv10)
 
-        lr = 1e-04
+        lr = 1e-07
         print(str(lr) + " Learning rate.")
         loss = 1
         if loss==0:
@@ -225,7 +225,7 @@ class myUnet(object):
 
     def get_unet(self):
 
-        input1 = Input((self.img_rows, self.img_cols, 1)) #, 1)) #MondayNightTODO
+        input1 = Input((self.img_rows, self.img_cols, 1))
         
         conv1 = Conv2D(64, 3, activation='relu', padding='same', kernel_initializer='he_normal')(input1)
         print("conv1 shape:", conv1.shape)
@@ -307,13 +307,6 @@ class myUnet(object):
 	
 
         model = Model(inputs=input1, outputs=conv10)
-        #model = Model(inputs=input1, outputs=conv9)
-	    #asdf = dice_coef(y_true, y_pred)
-        #dice_fn = dicee()
-
-
-        #dloss = dice_coef()
-        #d     = dice_coef_loss()
 
         
         lr = 1e-08
@@ -333,14 +326,6 @@ class myUnet(object):
 
         return model
 
-    
-    #def dice_coef(y_true, y_pred):
-    #    y_true_f = keras.flatten(y_true)
-     #   y_pred_f = keras.flatten(y_pred)
-      #  intersection = keras.sum(y_true_f * y_pred_f)
-       # coef = (2. * intersection + keras.epsilon()) / (keras.sum(y_true_f) + keras.sum(y_pred_f) + keras.epsilon())
-        #return coef
-
 
     def train(self):
 
@@ -348,7 +333,7 @@ class myUnet(object):
         imgs_train, imgs_mask_train, imgs_test = self.load_data()
         print("loading data done")
         
-        load_prev_model = 3
+        load_prev_model = 0
         if load_prev_model == 0:
             model = self.get_unet()
             print("Created orig. Unet.")
@@ -405,7 +390,7 @@ class myUnet(object):
 
             # END DATA AUGMENTATION SADFACE.
 
-        epochs = 5
+        epochs = 2
         batch_size = 8
         #augment git gen function instead of fit
         if augment==True:
