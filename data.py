@@ -330,10 +330,10 @@ class dataProcess(object):
 					img_train_flipud  = img_to_array( np.flipud(image_numpy[:,:,x]) ) # up down flip
 					img_train_fliplr_ud = img_to_array( np.flipud(np.fliplr(image_numpy[:,:,x])) ) # flip upDown AND leftRight
 
-					mask 		   = img_to_array( image_numpy[:,:,x] )
-					mask_fliplr    = img_to_array( np.fliplr(image_numpy[:,:,x]) ) # left right flip
-					mask_flipud    = img_to_array( np.flipud(image_numpy[:,:,x]) ) # up down flip
-					mask_fliplr_ud = img_to_array( np.flipud(np.fliplr(image_numpy[:,:,x])) ) # flip upDown AND leftRight
+					mask 		   = img_to_array( image_numpy_mask[:,:,x] )
+					mask_fliplr    = img_to_array( np.fliplr(image_numpy_mask[:,:,x]) ) # left right flip
+					mask_flipud    = img_to_array( np.flipud(image_numpy_mask[:,:,x]) ) # up down flip
+					mask_fliplr_ud = img_to_array( np.flipud(np.fliplr(image_numpy_mask[:,:,x])) ) # flip upDown AND leftRight
 
 					imgdatas[i]  = img_train
 					imglabels[i] = mask

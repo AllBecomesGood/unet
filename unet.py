@@ -397,7 +397,7 @@ class myUnet(object):
 
     def train(self, epochs, which_model, batch_size):
 
-        print("Loading data for training and testing...", end="")
+        print("Loading data for training and testing...")#, end="")
         imgs_train, imgs_mask_train, imgs_test = self.load_data()
         print("... done.")
         
@@ -527,7 +527,7 @@ if __name__ == '__main__':
     myunet.save_img()
     print("Go check output images." * 5)
 
-    for run_number in range(1,11)
+    for run_number in range(1,11):
         myunet.train(1, 0, 8) #0 = load from hdf5
         myunet.save_img()
         print("Go check output images." * 5 + "Epochs done: " + str(run_number+1))
