@@ -490,7 +490,11 @@ class myUnet(object):
                 #sample_weight = class_weights)
                     #, class_weight = {0:1, 1:100}
 
-        pred_test_data(imgs_test) # Predict and write to numpy file.
+        print('Predicting test data...')
+        imgs_mask_test = model.predict(imgs_test, batch_size=1, verbose=1)
+        np.save('./results/imgs_mask_test.npy', imgs_mask_test)
+        print('... done.')
+        #pred_test_data(imgs_test) # Predict and write to numpy file.
         
         # End of function.
 
@@ -523,11 +527,10 @@ class myUnet(object):
 if __name__ == '__main__':
     myunet = myUnet()
     #def train(self, epochs, which_model, batch_size):
-    myunet.train(1, 4, 8)
+    myunet.train(5, 4, 8)
     myunet.save_img()
-    print("Go check output images." * 5)
 
-    for run_number in range(1,11):
-        myunet.train(1, 0, 8) #0 = load from hdf5
-        myunet.save_img()
-        print("Go check output images." * 5 + "Epochs done: " + str(run_number+1))
+    #for run_number in range(1,11):
+    #    myunet.train(1, 0, 8) #0 = load from hdf5
+    #    myunet.save_img()
+    #    print("Go check output images." * 5 + "Epochs done: " + str(run_number+1))

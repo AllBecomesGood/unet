@@ -5,6 +5,7 @@ import glob
 #from sklearn.preprocessing import StandardScaler 
 from numpy import mean, std
 import nibabel
+from scipy.ndimage import rotate
 #import cv2
 #from libtiff import TIFF
 
@@ -228,24 +229,29 @@ class dataProcess(object):
 		print('-'*30)
 		print('Loading training images and masks...')
 
-		augment_type = 2 # 2=flip lr ud lrud. 1=rot3times
+		augmentation = True
+		flipping = True
+		rota15 = True
 
 		i = 0
 		# Load the images.
 		parent_folder = './TumourData/Kurtosis_Gliomas_nii/'
 		patient_folders = os.listdir(parent_folder)
 
-		numOfImagesTotal = 0
+		numOfImagesTotalBase = 0
 		for patient_folder in patient_folders:
 			image_nii = nibabel.load(parent_folder + patient_folder + '/' + 'flair_noskull.nii.gz')
 			_, _, num_of_slices = image_nii.shape
-			numOfImagesTotal += num_of_slices
+			numOfImagesTotalBase += num_of_slices
 		#print("num of slices total: " + str(numOfImagesTotal))
 		
-		if augment_type == 1:
-			numOfImagesTotal = numOfImagesTotal * 4
-		if augment_type == 2:
-			numOfImagesTotal = numOfImagesTotal * 4
+		numOfImagesTotal = numOfImagesTotalBase # 1 set is minimum. Adding space as needed per augmentation.
+		if augmentation == True:
+			if rota15 == True:
+				numOfImagesTotal += numOfImagesTotalBase * 2 # 1 set +15 degrees and 1 set -15 degrees.
+			if flipping == True:
+				numOfImagesTotal += numOfImagesTotalBase * 3 # 1*updown, 1*leftright, and then combination of both so 1 more set. 3 overall.
+			
 
 		# Create empty placeholder numpy array. (dim here: 30,512,512,1)
 		imgdatas = np.ndarray((numOfImagesTotal,self.out_rows,self.out_cols, 1), dtype=np.float32) 
@@ -278,9 +284,29 @@ class dataProcess(object):
 									  :]
 			
 			if c1 != c2:
-				print("SHIT'S ON FIRE, YO! Imgs and mask numbers not equal."*30)
+				print("Imgs and mask numbers not equal."*5)
 			
+			if rota15 == True:
+				#from scipy.ndimage import rotate
+				image_numpy_rotated_positive = rotate(image_numpy, 15, axes=(2, 1), reshape=False)
+				mask_numpy_rotated_positive  = rotate(image_numpy_mask, 15, axes=(2, 1), reshape=False)
+
+				image_numpy_rotated_minus = rotate(image_numpy, -15, axes=(2, 1), reshape=False)
+				mask_numpy_rotated_minus  = rotate(image_numpy_mask, -15, axes=(2, 1), reshape=False)
+
+
+
+			#zero mean	
 			image_numpy = (image_numpy - mean(image_numpy)) / std(image_numpy)
+			if rota15 == True:
+				# Must normalise after rotation, as 0's are introduced which would affect it, since after zero-mean the new min would be negative.
+				# Image and Mask.
+				image_numpy_rotated_positive = (image_numpy_rotated_positive - mean(image_numpy_rotated_positive)) / std(image_numpy_rotated_positive)
+				mask_numpy_rotated_positive  = (mask_numpy_rotated_positive  - mean(mask_numpy_rotated_positive))  / std(mask_numpy_rotated_positive)
+
+				image_numpy_rotated_minus = (image_numpy_rotated_minus    - mean(image_numpy_rotated_minus)) / std(image_numpy_rotated_minus)
+				mask_numpy_rotated_minus  = (mask_numpy_rotated_minus     - mean(mask_numpy_rotated_minus))  / std(mask_numpy_rotated_minus)
+
 			#print("image_numpy in data.py Max: " + str(np.max(np.array(image_numpy))))
 			#print("image_numpy in data.py Min (negative): " + str(np.min(np.array(image_numpy))))
 				
@@ -290,7 +316,7 @@ class dataProcess(object):
 				# zero mean and unit standard deviation
 				#image_numpy[:,:,x] = (image_numpy[:,:,x] - mean(image_numpy[:,:,x])) / std(image_numpy[:,:,x])
 				
-				if augment_type == 0:
+				if augmentation == False:
 					# We lose a dimension when we take out one slice ie [:,:,x]. 
 					# Return to dim1xdim2x1 shape via img_to_array()
 					img_train = img_to_array(image_numpy[:,:,x])
@@ -299,54 +325,64 @@ class dataProcess(object):
 					imgdatas[i]  = img_train
 					imglabels[i] = mask
 					i += 1
-				elif augment_type == 1:
-					# We lose a dimension when we take out one slice. Return to dim1xdim2x1 shape.
-					img_train = img_to_array(image_numpy[:,:,x])
-					img_train_rota1 = img_to_array( np.rot90(image_numpy[:,:,x]) )
-					img_train_rota2 = img_to_array( np.rot90(image_numpy[:,:,x], 2) )
-					img_train_rota3 = img_to_array( np.rot90(image_numpy[:,:,x], 3) )
+				# elif augment_type == 1:
+				# 	# We lose a dimension when we take out one slice. Return to dim1xdim2x1 shape.
+				# 	img_train = img_to_array(image_numpy[:,:,x])
+				# 	img_train_rota1 = img_to_array( np.rot90(image_numpy[:,:,x]) )
+				# 	img_train_rota2 = img_to_array( np.rot90(image_numpy[:,:,x], 2) )
+				# 	img_train_rota3 = img_to_array( np.rot90(image_numpy[:,:,x], 3) )
 
-					mask = img_to_array(image_numpy_mask[:,:,x])
-					mask_rota1 = img_to_array( np.rot90(image_numpy_mask[:,:,x]) )
-					mask_rota2 = img_to_array( np.rot90(image_numpy_mask[:,:,x], 2) )
-					mask_rota3 = img_to_array( np.rot90(image_numpy_mask[:,:,x], 3) )
+				# 	mask = img_to_array(image_numpy_mask[:,:,x])
+				# 	mask_rota1 = img_to_array( np.rot90(image_numpy_mask[:,:,x]) )
+				# 	mask_rota2 = img_to_array( np.rot90(image_numpy_mask[:,:,x], 2) )
+				# 	mask_rota3 = img_to_array( np.rot90(image_numpy_mask[:,:,x], 3) )
 
-					imgdatas[i]  = img_train
-					imglabels[i] = mask
-					i += 1
-					imgdatas[i]  = img_train_rota1
-					imglabels[i] = mask_rota1
-					i += 1
-					imgdatas[i]  = img_train_rota2
-					imglabels[i] = mask_rota2
-					i += 1
-					imgdatas[i]  = img_train_rota3
-					imglabels[i] = mask_rota3
-					i += 1
-				elif augment_type == 2:
+				# 	imgdatas[i]  = img_train
+				# 	imglabels[i] = mask
+				# 	i += 1
+				# 	imgdatas[i]  = img_train_rota1
+				# 	imglabels[i] = mask_rota1
+				# 	i += 1
+				# 	imgdatas[i]  = img_train_rota2
+				# 	imglabels[i] = mask_rota2
+				# 	i += 1
+				# 	imgdatas[i]  = img_train_rota3
+				# 	imglabels[i] = mask_rota3
+				# 	i += 1
+				elif augmentation == True:
 					# We lose a dimension when we take out one slice. Return to dim1xdim2x1 shape.
-					img_train 		  = img_to_array(image_numpy[:,:,x])
-					img_train_fliplr  = img_to_array( np.fliplr(image_numpy[:,:,x]) ) # left right flip
-					img_train_flipud  = img_to_array( np.flipud(image_numpy[:,:,x]) ) # up down flip
-					img_train_fliplr_ud = img_to_array( np.flipud(np.fliplr(image_numpy[:,:,x])) ) # flip upDown AND leftRight
+					img_train = img_to_array( image_numpy[:,:,x] )
+					if flipping == True:
+						img_train_fliplr    = img_to_array( np.fliplr(image_numpy[:,:,x]) ) # left right flip
+						img_train_flipud    = img_to_array( np.flipud(image_numpy[:,:,x]) ) # up down flip
+						img_train_fliplr_ud = img_to_array( np.flipud(np.fliplr(image_numpy[:,:,x])) ) # flip upDown AND leftRight
 
 					mask 		   = img_to_array( image_numpy_mask[:,:,x] )
-					mask_fliplr    = img_to_array( np.fliplr(image_numpy_mask[:,:,x]) ) # left right flip
-					mask_flipud    = img_to_array( np.flipud(image_numpy_mask[:,:,x]) ) # up down flip
-					mask_fliplr_ud = img_to_array( np.flipud(np.fliplr(image_numpy_mask[:,:,x])) ) # flip upDown AND leftRight
+					if flipping == True:
+						mask_fliplr    = img_to_array( np.fliplr(image_numpy_mask[:,:,x]) ) # left right flip
+						mask_flipud    = img_to_array( np.flipud(image_numpy_mask[:,:,x]) ) # up down flip
+						mask_fliplr_ud = img_to_array( np.flipud(np.fliplr(image_numpy_mask[:,:,x])) ) # flip upDown AND leftRight
 
 					imgdatas[i]  = img_train
 					imglabels[i] = mask
 					i += 1
-					imgdatas[i]  = img_train_fliplr
-					imglabels[i] = mask_fliplr
-					i += 1
-					imgdatas[i]  = img_train_flipud
-					imglabels[i] = mask_flipud
-					i += 1
-					imgdatas[i]  = img_train_fliplr_ud
-					imglabels[i] = mask_fliplr_ud
-					i += 1
+					if flipping == True:
+						imgdatas[i]  = img_train_fliplr
+						imglabels[i] = mask_fliplr
+						i += 1
+						imgdatas[i]  = img_train_flipud
+						imglabels[i] = mask_flipud
+						i += 1
+						imgdatas[i]  = img_train_fliplr_ud
+						imglabels[i] = mask_fliplr_ud
+						i += 1
+					if rota15 == True:
+						imgdatas[i]  = img_to_array( image_numpy_rotated_positive[:,:,x] )
+						imglabels[i] = img_to_array( mask_numpy_rotated_minus[:,:,x] )
+						i += 1
+						imgdatas[i]  = img_to_array( image_numpy_rotated_positive[:,:,x] )
+						imglabels[i] = img_to_array( mask_numpy_rotated_minus[:,:,x] )
+						i += 1
 
 
 
