@@ -378,9 +378,9 @@ class dataProcess(object):
 						i += 1
 					if rota15 == True:
 						imgdatas[i]  = img_to_array( image_numpy_rotated_positive[:,:,x] )
-						imglabels[i] = img_to_array( mask_numpy_rotated_minus[:,:,x] )
+						imglabels[i] = img_to_array( mask_numpy_rotated_positive[:,:,x] )
 						i += 1
-						imgdatas[i]  = img_to_array( image_numpy_rotated_positive[:,:,x] )
+						imgdatas[i]  = img_to_array( image_numpy_rotated_minus[:,:,x] )
 						imglabels[i] = img_to_array( mask_numpy_rotated_minus[:,:,x] )
 						i += 1
 
