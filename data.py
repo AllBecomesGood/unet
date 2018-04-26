@@ -55,9 +55,10 @@ class dataProcess(object):
 		if augmentation == True:
 			if rota15 == True:
 				numOfImagesTotal += numOfImagesTotalBase * 2 # 1 set +15 degrees and 1 set -15 degrees.
+				print("Rotation increased num of total images to: " + str(numOfImagesTotal))
 			if flipping == True:
 				numOfImagesTotal += numOfImagesTotalBase * 3 # 1*updown, 1*leftright, and then combination of both so 1 more set. 3 overall.
-			
+				print("Flipping increased num of total images to: " + str(numOfImagesTotal))
 
 		# Create empty placeholder numpy array. (dim here: 30,512,512,1)
 		imgdatas = np.ndarray((numOfImagesTotal,self.out_rows,self.out_cols, 1), dtype=np.float32) 
@@ -65,6 +66,7 @@ class dataProcess(object):
 		
 		if i == 0:
 			print("# of folders/patients should be 35 (37-2test): " + str(len(patient_folders)))
+		ff = 0
 		# loops thru imgs
 		for patient_folder in patient_folders:
 			#midname = imgname[imgname.rindex("/")+1:]
@@ -99,6 +101,28 @@ class dataProcess(object):
 
 				image_numpy_rotated_minus = rotate(image_numpy, -15, axes=(2, 1), reshape=False)
 				mask_numpy_rotated_minus  = rotate(image_numpy_mask, -15, axes=(2, 1), reshape=False)
+				
+				
+				if ff == 0:
+					print("Rota debug.")
+					print("image_numpy.shape: " + str(image_numpy.shape))
+					print("Nan? " + str(np.isnan(np.sum(image_numpy))))
+					print("image_numpy_mask.shape: " + str(image_numpy_mask.shape))
+					print("Nan? " + str(np.isnan(np.sum(image_numpy_mask))))
+					print("image_numpy_rotated_positive.shape: " + str(image_numpy_rotated_positive.shape))
+					print("Nan? " + str(np.isnan(np.sum(image_numpy_rotated_positive))))
+					print("mask_numpy_rotated_positive.shape: " + str(mask_numpy_rotated_positive.shape))
+					print("Nan? " + str(np.isnan(np.sum(mask_numpy_rotated_positive))))
+					print("image_numpy_rotated_minus.shape: " + str(image_numpy_rotated_minus.shape))
+					print("Nan? " + str(np.isnan(np.sum(image_numpy_rotated_minus))))
+					print("mask_numpy_rotated_minus.shape: " + str(mask_numpy_rotated_minus.shape))
+					print("Nan? " + str(np.isnan(np.sum(mask_numpy_rotated_minus))))
+					print("image_numpy_rotated_positive Max: " + str(np.max(np.array(image_numpy_rotated_positive))))
+					print("Nan? " + str(np.isnan(np.sum(image_numpy_rotated_positive))))
+					print("image_numpy_rotated_positive Min: " + str(np.min(np.array(image_numpy_rotated_positive))))
+					print("Nan? " + str(np.isnan(np.sum(image_numpy_rotated_positive))))
+					print("Rota debug end.")
+					ff = ff + 1
 
 
 
@@ -108,10 +132,22 @@ class dataProcess(object):
 				# Must normalise after rotation, as 0's are introduced which would affect it, since after zero-mean the new min would be negative.
 				# Image and Mask.
 				image_numpy_rotated_positive = (image_numpy_rotated_positive - mean(image_numpy_rotated_positive)) / std(image_numpy_rotated_positive)
-				mask_numpy_rotated_positive  = (mask_numpy_rotated_positive  - mean(mask_numpy_rotated_positive))  / std(mask_numpy_rotated_positive)
+				#mask_numpy_rotated_positive  = (mask_numpy_rotated_positive  - mean(mask_numpy_rotated_positive))  / std(mask_numpy_rotated_positive)
 
 				image_numpy_rotated_minus = (image_numpy_rotated_minus    - mean(image_numpy_rotated_minus)) / std(image_numpy_rotated_minus)
-				mask_numpy_rotated_minus  = (mask_numpy_rotated_minus     - mean(mask_numpy_rotated_minus))  / std(mask_numpy_rotated_minus)
+				#mask_numpy_rotated_minus  = (mask_numpy_rotated_minus     - mean(mask_numpy_rotated_minus))  / std(mask_numpy_rotated_minus)
+				if ff == 1:
+					print("Rota 2 debug.")
+					print("image_numpy.shape: " + str(image_numpy.shape))
+					print("image_numpy_mask.shape: " + str(image_numpy_mask.shape))
+					print("image_numpy_rotated_positive.shape: " + str(image_numpy_rotated_positive.shape))
+					print("mask_numpy_rotated_positive.shape: " + str(mask_numpy_rotated_positive.shape))
+					print("image_numpy_rotated_minus.shape: " + str(image_numpy_rotated_minus.shape))
+					print("mask_numpy_rotated_minus.shape: " + str(mask_numpy_rotated_minus.shape))
+					print("image_numpy_rotated_positive Max: " + str(np.max(np.array(image_numpy_rotated_positive))))
+					print("image_numpy_rotated_positive Min: " + str(np.min(np.array(image_numpy_rotated_positive))))
+					print("Rota 2 debug end.")
+					ff = ff + 1
 
 			#print("image_numpy in data.py Max: " + str(np.max(np.array(image_numpy))))
 			#print("image_numpy in data.py Min (negative): " + str(np.min(np.array(image_numpy))))
