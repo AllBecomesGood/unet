@@ -228,7 +228,7 @@ class dataProcess(object):
 		print('-'*30)
 		print('Loading training images and masks...')
 
-		rotate_3_times = 1
+		augment_type = 2 # 2=flip lr ud lrud. 1=rot3times
 
 		i = 0
 		# Load the images.
@@ -242,7 +242,9 @@ class dataProcess(object):
 			numOfImagesTotal += num_of_slices
 		#print("num of slices total: " + str(numOfImagesTotal))
 		
-		if rotate_3_times == 1:
+		if augment_type == 1:
+			numOfImagesTotal = numOfImagesTotal * 4
+		if augment_type == 2:
 			numOfImagesTotal = numOfImagesTotal * 4
 
 		# Create empty placeholder numpy array. (dim here: 30,512,512,1)
@@ -288,7 +290,7 @@ class dataProcess(object):
 				# zero mean and unit standard deviation
 				#image_numpy[:,:,x] = (image_numpy[:,:,x] - mean(image_numpy[:,:,x])) / std(image_numpy[:,:,x])
 				
-				if rotate_3_times == 0:
+				if augment_type == 0:
 					# We lose a dimension when we take out one slice ie [:,:,x]. 
 					# Return to dim1xdim2x1 shape via img_to_array()
 					img_train = img_to_array(image_numpy[:,:,x])
@@ -297,7 +299,7 @@ class dataProcess(object):
 					imgdatas[i]  = img_train
 					imglabels[i] = mask
 					i += 1
-				elif rotate_3_times == 1:
+				elif augment_type == 1:
 					# We lose a dimension when we take out one slice. Return to dim1xdim2x1 shape.
 					img_train = img_to_array(image_numpy[:,:,x])
 					img_train_rota1 = img_to_array( np.rot90(image_numpy[:,:,x]) )
@@ -321,6 +323,31 @@ class dataProcess(object):
 					imgdatas[i]  = img_train_rota3
 					imglabels[i] = mask_rota3
 					i += 1
+				elif augment_type == 2:
+					# We lose a dimension when we take out one slice. Return to dim1xdim2x1 shape.
+					img_train 		  = img_to_array(image_numpy[:,:,x])
+					img_train_fliplr  = img_to_array( np.fliplr(image_numpy[:,:,x]) ) # left right flip
+					img_train_flipud  = img_to_array( np.flipud(image_numpy[:,:,x]) ) # up down flip
+					img_train_fliplr_ud = img_to_array( np.flipud(np.fliplr(image_numpy[:,:,x])) ) # flip upDown AND leftRight
+
+					mask 		   = img_to_array( image_numpy[:,:,x] )
+					mask_fliplr    = img_to_array( np.fliplr(image_numpy[:,:,x]) ) # left right flip
+					mask_flipud    = img_to_array( np.flipud(image_numpy[:,:,x]) ) # up down flip
+					mask_fliplr_ud = img_to_array( np.flipud(np.fliplr(image_numpy[:,:,x])) ) # flip upDown AND leftRight
+
+					imgdatas[i]  = img_train
+					imglabels[i] = mask
+					i += 1
+					imgdatas[i]  = img_train_fliplr
+					imglabels[i] = mask_fliplr
+					i += 1
+					imgdatas[i]  = img_train_flipud
+					imglabels[i] = mask_flipud
+					i += 1
+					imgdatas[i]  = img_train_fliplr_ud
+					imglabels[i] = mask_fliplr_ud
+					i += 1
+
 
 
 				_, _, channel = img_train.shape
