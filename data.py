@@ -6,10 +6,10 @@ from numpy import mean, std
 import nibabel
 from scipy.ndimage import rotate
 
-_augmentation = False
-_flipping = False
-_rota15 = False
-_flip_rota = False
+_augmentation = True
+_flipping = True
+_rota15 = True
+_flip_rota = False #seems to worsen results
 _folder_test_data = "N/A"
 
 
@@ -280,7 +280,7 @@ class dataProcess(object):
 
 	def create_test_data_nii(self):
 		print('-'*30)
-		print("Entering function: Them who say Niii: def create_test_data_nii(self):")
+		print("Entering function: create_test_data_nii()")
 		print('Creating test images...')
 
 		i = 0
@@ -302,14 +302,13 @@ class dataProcess(object):
 		
 		if i == 0:
 			print("# of folders/patients should be 2 (37-35train): " + str(len(patient_folders)))
-		# loops thru imgs
+		# Loop thru folders which contain an MRI scan each.
 		for patient_folder in patient_folders:
 			image_nii   = nibabel.load(parent_folder + patient_folder + '/' + 'flair_noskull.nii.gz')
 			image_numpy = image_nii.get_data()
-			#image_numpy = np.pad(image_numpy, ((22,22),(0,0),(0,0)), 'constant')
+			
 			a1, b1, c1 = image_numpy.shape
 			print("=== === Img Shape before crop: " + str(image_numpy.shape))
-			a1, b1, c1 = image_numpy.shape
 			half_excess_a1 = int( (a1 - 256) / 2 )
 			half_excess_b1 = int( (b1 - 256) / 2 )
 			image_numpy = image_numpy[0+half_excess_a1:a1-half_excess_a1,
@@ -368,15 +367,14 @@ class dataProcess(object):
 	def load_test_data(self):
 		print('-'*30)
 		print('Loading test images...')
-		print('-'*30)
+
 		imgs_test = np.load(self.npy_path+"/imgs_test.npy")
 		imgs_test = imgs_test.astype('float32')
 		#imgs_test /= 255
 		print("Test img dimensions: " + str(imgs_test.ndim))
 		print("test data Max: " + str(np.max(np.array(imgs_test))))
 		print("test data Min: " + str(np.min(np.array(imgs_test))))
-		#mean = imgs_test.mean(axis = 0)
-		#imgs_test -= mean
+		
 		return imgs_test
 
 	def save_model_info_data(self, dim1, dim2):

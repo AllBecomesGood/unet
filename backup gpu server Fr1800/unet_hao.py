@@ -10,6 +10,7 @@ from keras import backend as K
 from data import *
 from losses import *
 from keras.models import load_model
+import nibabel
 
 # Global vars for easy access and who cares about programming principles.
 _epochs = 5
@@ -21,6 +22,10 @@ _test_shape = "N/A"
 _features_low = "N/A"
 _features_deep = "N/A"
 _load = 0
+
+_nii_test_img = None
+_nii_test_mask = None
+
 class myUnet(object):
 
 	# set to img size
@@ -193,12 +198,12 @@ class myUnet(object):
 
     def save_img(self):
 
-        print("array to image")
-        imgs = np.load('./results/imgs_mask_test.npy')
-        print("test result Max: " + str(np.max(np.array(imgs))))
-        print("test result Min: " + str(np.min(np.array(imgs))))
-        for i in range(imgs.shape[0]):
-            img = imgs[i]
+        print("Saving predictions to /results/ folder.")
+        mask_preds = np.load('./results/imgs_mask_test.npy')
+        print("test result Max: " + str(np.max(np.array(mask_preds))))
+        print("test result Min: " + str(np.min(np.array(mask_preds))))
+        for i in range(mask_preds.shape[0]):
+            img = mask_preds[i]
             #if i == 30:
                 #print("img in unet.py Max: " + str(np.max(np.array(img))))
                 #print("img in unet.py Min: " + str(np.min(np.array(img))))
@@ -209,6 +214,47 @@ class myUnet(object):
             img = array_to_img(img)
             #print(img.size)
             img.save("./results/%d.tif" % (i))
+
+        # Turn into nifti1 and resize to 256, update header info and save.
+        # ./TumourData/test_nii/ [only 1 folder here]
+        parent_folder = './TumourData/test_nii/'
+        patient_folders = os.listdir(parent_folder)
+
+        for patient_folder in patient_folders: #this only runs once, as only 1 folder there at a time.
+            # patient_folder is NR_Diff_XX so can use to name output.
+            image_nii   = nibabel.load(parent_folder + patient_folder + '/' + 'flair_noskull.nii.gz')
+            mask_nii    = nibabel.load(parent_folder + patient_folder + '/' + 'FLAIR_mask.nii.gz')
+            print("mask_preds.shape: " + str(mask_preds.shape) + " must equal ")
+
+            # Adjust headers to 256*256 dimension.
+            image_nii_header = image_nii.header
+            image_nii_header['dim'][2] = 256
+            image_nii_header['dim'][1] = 256
+            mask_nii_header = mask_nii.header
+            mask_nii_header['dim'][2] = 256
+            mask_nii_header['dim'][1] = 256
+
+            image_numpy = image_nii.get_data()
+            
+            if 1==1: #resize image_numpy to 256
+                a1, b1, c1 = image_numpy.shape
+                print("=== === Img Shape before crop: " + str(image_numpy.shape))
+                half_excess_a1 = int( (a1 - 256) / 2 )
+                half_excess_b1 = int( (b1 - 256) / 2 )
+                image_numpy = image_numpy[0+half_excess_a1:a1-half_excess_a1,
+                                          0+half_excess_b1:b1-half_excess_b1,
+                                          :] #not a smiley.
+                print("=== === Img Shape after crop:  " + str(image_numpy.shape))
+
+            asdf
+            # Save Mask to .nii
+            
+            niimask_new = nibabel.Nifti1Image(mask_preds, affine=mask_nii.affine, header=mask_nii_header)
+            nib.save(niimask_new, './results/' + patient_folder + '/FLAIR_mask_256_Unet.nii.gz')  
+
+            nii_img_new = nibabel.Nifti1Image(image_numpy, affine=image_nii.affine, header=image_nii_header)
+            nib.save(niimask2, './TumourData/test_nii/NR_Diff_60/FLAIR_mask_NEW.nii.gz')
+
 
     def save_model_info(self):
         file = open("./results/model_info.txt","w")

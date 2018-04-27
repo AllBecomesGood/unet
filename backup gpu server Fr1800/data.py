@@ -287,6 +287,7 @@ class dataProcess(object):
 		parent_folder = './TumourData/test_nii/'
 		patient_folders = os.listdir(parent_folder)
 
+		# Count total slices/images of all available MRI scans.
 		numOfImagesTotal = 0
 		for patient_folder in patient_folders:
 			global _test_folder
@@ -294,13 +295,12 @@ class dataProcess(object):
 			image_nii = nibabel.load(parent_folder + patient_folder + '/' + 'flair_noskull.nii.gz')
 			_, _, num_of_slices = image_nii.shape
 			numOfImagesTotal += num_of_slices
-		#print("num of slices total: " + str(numOfImagesTotal))
 		
 		# Create empty placeholder numpy array. (dim here: 30,512,512,1)
-		imgdatas = np.ndarray((numOfImagesTotal,self.out_rows,self.out_cols, 1), dtype=np.float32) #MondayNightTODO was ,1 dim
+		imgdatas = np.ndarray((numOfImagesTotal,self.out_rows,self.out_cols, 1), dtype=np.float32)
 		
 		if i == 0:
-			print("# of folders/patients should be 2 (37-35train): " + str(len(patient_folders)))
+			print("# of folders/patients should be 1 (37-36train): " + str(len(patient_folders)))
 		# loops thru imgs
 		for patient_folder in patient_folders:
 			image_nii   = nibabel.load(parent_folder + patient_folder + '/' + 'flair_noskull.nii.gz')
@@ -334,6 +334,9 @@ class dataProcess(object):
 
 		print("Finished function: def create_test_data_nii(self):")
 		print('-'*30)
+
+	#def resize_nii_then_save(self):
+
 	
 
 	def load_train_data(self):
