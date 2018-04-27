@@ -6,12 +6,11 @@ from numpy import mean, std
 import nibabel
 from scipy.ndimage import rotate
 
-_augmentation = False
-_flipping = False
-_rota15 = False
+_augmentation = True
+_flipping = True
+_rota15 = True
 _flip_rota = False
-_folder_test_data = "N/A"
-
+_test_folder = "N/A"
 
 class dataProcess(object):
 
@@ -290,8 +289,8 @@ class dataProcess(object):
 
 		numOfImagesTotal = 0
 		for patient_folder in patient_folders:
-			global _folder_test_data
-			_folder_test_data = patient_folder
+			global _test_folder
+			_test_folder = patient_folder
 			image_nii = nibabel.load(parent_folder + patient_folder + '/' + 'flair_noskull.nii.gz')
 			_, _, num_of_slices = image_nii.shape
 			numOfImagesTotal += num_of_slices
@@ -381,7 +380,7 @@ class dataProcess(object):
 
 	def save_model_info_data(self, dim1, dim2):
 		file = open("./results/data_model_info.txt","w")
-		file.write("Test data Folder: " + str(_folder_test_data) + "\n")
+		file.write("Test Folder: " + str(_test_folder) + "\n")
 		file.write("img dimensions: " + str(dim1) + "x" + str(dim2) + "\n")
 		file.write("_augmentation: " + str(_augmentation) + "\n")
 		file.write("_flipping: " + str(_flipping) + "\n")

@@ -592,13 +592,13 @@ class myUnet(object):
             img.save("./results/%d.tif" % (i))
 
     def save_model_info(self):
-        file = open("./results/model_info.txt","a")
+        file = open("./results/model_info.txt","w")
         file.write("epochs: " + str(_epochs) + "\n")
         file.write("which_model: " + str(_which_model) + "\n")
         file.write("_batch_size: " + str(_batch_size) + "\n")
         file.write("_lr: " + str(_lr) + "\n")
         file.write("_tensor_in: " + str(_tensor_in) + "\n")
-        file.write("_tensor_in: " + str(_tensor_in) + "\n")
+        file.write("_test_shape: " + str(_test_shape) + "\n")
         file.write("_features_low: " + str(_features_low) + "\n")
         file.write("_features_deep: " + str(_features_deep) + "\n")
         file.close()
