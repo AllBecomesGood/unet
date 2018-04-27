@@ -6,6 +6,11 @@ from numpy import mean, std
 import nibabel
 from scipy.ndimage import rotate
 
+_augmentation = False
+_flipping = False
+_rota15 = False
+_flip_rota = False
+
 
 class dataProcess(object):
 
@@ -35,10 +40,10 @@ class dataProcess(object):
 		print('-'*30)
 		print('Loading training images and masks...')
 
-		augmentation = True
-		flipping = True
-		rota15 = True
-		flip_rota = True
+		augmentation = _augmentation
+		flipping = _flipping
+		rota15 = _rota15
+		flip_rota = _flip_rota
 
 		i = 0
 		# Load the images.
@@ -53,16 +58,17 @@ class dataProcess(object):
 		#print("num of slices total: " + str(numOfImagesTotal))
 		
 		numOfImagesTotal = numOfImagesTotalBase # 1 set is minimum. Adding space as needed per augmentation.
+		print("Base amount of un-augmented training data is: " + str(numOfImagesTotalBase))
 		if augmentation == True:
 			if rota15 == True:
 				numOfImagesTotal += numOfImagesTotalBase * 2 # 1 set +15 degrees and 1 set -15 degrees.
-				print("Rotation increased num of total images to: " + str(numOfImagesTotal))
+				print("Rotation increased amount of training data to: " + str(numOfImagesTotal))
 			if flipping == True:
 				numOfImagesTotal += numOfImagesTotalBase * 3 # 1*updown, 1*leftright, and then combination of both so 1 more set. 3 overall.
-				print("Flipping increased num of total images to: " + str(numOfImagesTotal))
+				print("Flipping increased namount of training data to: " + str(numOfImagesTotal))
 			if flip_rota == True:
 				numOfImagesTotal += numOfImagesTotalBase * 2 # LR flip pos and neg rota -> 2 more.
-				print("flip_rota increased num of total images to: " + str(numOfImagesTotal))
+				print("flip_rota increased amount of training data to: " + str(numOfImagesTotal))
 
 		# Create empty placeholder numpy array. (dim here: 30,512,512,1)
 		imgdatas = np.ndarray((numOfImagesTotal,self.out_rows,self.out_cols, 1), dtype=np.float32) 
@@ -70,7 +76,7 @@ class dataProcess(object):
 		
 		if i == 0:
 			print("# of folders/patients should be 35 (37-2test): " + str(len(patient_folders)))
-		ff = 0
+		ff = 10 # set 0 to run debug. set above 10 to not run.
 		# loops thru imgs
 		for patient_folder in patient_folders:
 			#midname = imgname[imgname.rindex("/")+1:]
@@ -235,6 +241,16 @@ class dataProcess(object):
 						flip_rota_pos_mask = img_to_array( np.fliplr(mask_numpy_rotated_positive[:,:,x]) )
 						flip_rota_minus_img  = img_to_array( np.fliplr(image_numpy_rotated_minus[:,:,x]) )
 						flip_rota_minus_mask = img_to_array( np.fliplr(mask_numpy_rotated_minus[:,:,x]) )
+						if ff==2:
+							print("flip_rota_pos_img.shape: " + str(flip_rota_pos_img.shape))
+							print("flip_rota_pos_mask.shape: " + str(flip_rota_pos_mask.shape))
+							print("flip_rota_minus_img.shape: " + str(flip_rota_minus_img.shape))
+							print("flip_rota_minus_mask.shape: " + str(flip_rota_minus_mask.shape))
+							print("flip_rota_pos_img Max positive?: " + str(np.max(np.array(flip_rota_pos_img))))
+							print("flip_rota_pos_img Min negative?: " + str(np.min(np.array(flip_rota_pos_img))))
+							print("flip_rota_pos_mask Max be 1? (could be all black mask): " + str(np.max(np.array(flip_rota_pos_mask))))
+							print("flip_rota_pos_mask Min be 0?: " + str(np.min(np.array(flip_rota_pos_mask))))
+							ff = ff + 1
 						imgdatas[i]  = flip_rota_pos_img
 						imglabels[i] = flip_rota_pos_mask
 						i += 1
@@ -320,22 +336,24 @@ class dataProcess(object):
 
 	def load_train_data(self):
 		print('-'*30)
-		print('load train images...')
+		print('Loading training images and masks...')
 		print('-'*30)
 		imgs_train = np.load(self.npy_path+"/imgs_train.npy")
 		imgs_mask_train = np.load(self.npy_path+"/imgs_mask_train.npy")
 
-		print("negative min?")
-		print("imgs_train in data.py Max: " + str(np.max(np.array(imgs_train))))
-		print("imgs_train in data.py Min: " + str(np.min(np.array(imgs_train))))
+		if np.min(np.array(imgs_train)) >= 0:
+			print("negative min?")
+			print("imgs_train in data.py Max: " + str(np.max(np.array(imgs_train))))
+			print("imgs_train in data.py Min: " + str(np.min(np.array(imgs_train))))
 
 		imgs_train = imgs_train.astype('float32')
 		imgs_mask_train = imgs_mask_train.astype('float32')
 		# imgs are not scaled to 255 and masks are already 0 or 1
 		#imgs_train /= 255
-		print("negative min still?")
-		print("imgs_train in data.py Max: " + str(np.max(np.array(imgs_train))))
-		print("imgs_train in data.py Min: " + str(np.min(np.array(imgs_train))))
+		if np.min(np.array(imgs_train)) >= 0:
+			print("negative min still?")
+			print("imgs_train in data.py Max: " + str(np.max(np.array(imgs_train))))
+			print("imgs_train in data.py Min: " + str(np.min(np.array(imgs_train))))
 		
 		print("imgs_mask_train in data.py Max should be 1: " + str(np.max(np.array(imgs_mask_train))))
 		print("imgs_mask_train in data.py Min should be 0: " + str(np.min(np.array(imgs_mask_train))))
@@ -346,17 +364,27 @@ class dataProcess(object):
 
 	def load_test_data(self):
 		print('-'*30)
-		print('load test images...')
+		print('Loading test images...')
 		print('-'*30)
 		imgs_test = np.load(self.npy_path+"/imgs_test.npy")
 		imgs_test = imgs_test.astype('float32')
 		#imgs_test /= 255
-		print("ndim: " + str(imgs_test.ndim))
-		print("imgs_test in data.py Max: " + str(np.max(np.array(imgs_test))))
-		print("imgs_test in data.py Min: " + str(np.min(np.array(imgs_test))))
+		print("Test img dimensions: " + str(imgs_test.ndim))
+		print("test data Max: " + str(np.max(np.array(imgs_test))))
+		print("test data Min: " + str(np.min(np.array(imgs_test))))
 		#mean = imgs_test.mean(axis = 0)
 		#imgs_test -= mean
 		return imgs_test
+
+	def save_model_info_data(self, dim1, dim2):
+		file = open("./results/model_info.txt","w")
+		file.write("img dimensions: " + str(dim1) + "x" + str(dim2) + "\n")
+		file.write("_augmentation: " + str(_augmentation) + "\n")
+		file.write("_flipping: " + str(_flipping) + "\n")
+		file.write("_rota15: " + str(_rota15) + "\n")
+		file.write("_flip_rota: " + str(_flip_rota) + "\n")
+		file.close()
+		print("Wrote data model info file.")
 # End dataProcess class.
 
 
@@ -371,6 +399,7 @@ if __name__ == "__main__":
 	mydata.create_train_data_nii()
 	print("Calling function .create_test_data()")
 	mydata.create_test_data_nii()
+	mydata.save_model_info_data(dim1, dim2)
 	print('='*30)
 	print("\n")
 	#imgs_train,imgs_mask_train = mydata.load_train_data()

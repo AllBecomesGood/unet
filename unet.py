@@ -14,11 +14,13 @@ from keras.models import load_model
 
 # Global vars for easy access and who cares about programming principles.
 _epochs = 10
-_which_model = 5 # 5=ultra.
+_which_model = "ultra" #ultra. #loadhdf5 #unet_orig #shallow_orig_unet #diff_opt_loss_unet #keras1_unet
 _batch_size = 8
 _lr = 1e-06
 _tensor_in = "N/A"
 _test_shape = "N/A"
+_features_low = "N/A"
+_features_deep = "N/A"
 
 
 class myUnet(object):
@@ -195,7 +197,7 @@ class myUnet(object):
 
     def get_unet3(self):
 
-        print("HELLO?")
+        print("Different optimizer and loss, but doesn't work.")
         input1 = Input((self.img_rows, self.img_cols, 1)) #, 1)) #MondayNightTODO
         
         conv1 = Conv2D(64, 3, activation='relu', padding='same', kernel_initializer='he_normal')(input1)
@@ -405,40 +407,45 @@ class myUnet(object):
     def get_unet_ultra(self):
         # https://github.com/jocicmarko/ultrasound-nerve-segmentation/blob/master/train.py
         inputs = Input((self.img_rows, self.img_cols, 1))
-        conv1 = Conv2D(32, (3, 3), activation='relu', padding='same')(inputs)
-        conv1 = Conv2D(32, (3, 3), activation='relu', padding='same')(conv1)
+        feature_amount = 32
+        global _features_low, _features_deep
+        _features_low = feature_amount
+        _features_deep = feature_amount*16
+
+        conv1 = Conv2D(feature_amount, (3, 3), activation='relu', padding='same')(inputs)
+        conv1 = Conv2D(feature_amount, (3, 3), activation='relu', padding='same')(conv1)
         pool1 = MaxPooling2D(pool_size=(2, 2))(conv1)
 
-        conv2 = Conv2D(64, (3, 3), activation='relu', padding='same')(pool1)
-        conv2 = Conv2D(64, (3, 3), activation='relu', padding='same')(conv2)
+        conv2 = Conv2D(feature_amount*2, (3, 3), activation='relu', padding='same')(pool1)
+        conv2 = Conv2D(feature_amount*2, (3, 3), activation='relu', padding='same')(conv2)
         pool2 = MaxPooling2D(pool_size=(2, 2))(conv2)
 
-        conv3 = Conv2D(128, (3, 3), activation='relu', padding='same')(pool2)
-        conv3 = Conv2D(128, (3, 3), activation='relu', padding='same')(conv3)
+        conv3 = Conv2D(feature_amount*4, (3, 3), activation='relu', padding='same')(pool2)
+        conv3 = Conv2D(feature_amount*4, (3, 3), activation='relu', padding='same')(conv3)
         pool3 = MaxPooling2D(pool_size=(2, 2))(conv3)
 
-        conv4 = Conv2D(256, (3, 3), activation='relu', padding='same')(pool3)
-        conv4 = Conv2D(256, (3, 3), activation='relu', padding='same')(conv4)
+        conv4 = Conv2D(feature_amount*8, (3, 3), activation='relu', padding='same')(pool3)
+        conv4 = Conv2D(feature_amount*8, (3, 3), activation='relu', padding='same')(conv4)
         pool4 = MaxPooling2D(pool_size=(2, 2))(conv4)
 
-        conv5 = Conv2D(512, (3, 3), activation='relu', padding='same')(pool4)
-        conv5 = Conv2D(512, (3, 3), activation='relu', padding='same')(conv5)
+        conv5 = Conv2D(feature_amount*16, (3, 3), activation='relu', padding='same')(pool4)
+        conv5 = Conv2D(feature_amount*16, (3, 3), activation='relu', padding='same')(conv5)
 
-        up6 = concatenate([Conv2DTranspose(256, (2, 2), strides=(2, 2), padding='same')(conv5), conv4], axis=3)
-        conv6 = Conv2D(256, (3, 3), activation='relu', padding='same')(up6)
-        conv6 = Conv2D(256, (3, 3), activation='relu', padding='same')(conv6)
+        up6 = concatenate([Conv2DTranspose(feature_amount*8, (2, 2), strides=(2, 2), padding='same')(conv5), conv4], axis=3)
+        conv6 = Conv2D(feature_amount*8, (3, 3), activation='relu', padding='same')(up6)
+        conv6 = Conv2D(feature_amount*8, (3, 3), activation='relu', padding='same')(conv6)
 
-        up7 = concatenate([Conv2DTranspose(128, (2, 2), strides=(2, 2), padding='same')(conv6), conv3], axis=3)
-        conv7 = Conv2D(128, (3, 3), activation='relu', padding='same')(up7)
-        conv7 = Conv2D(128, (3, 3), activation='relu', padding='same')(conv7)
+        up7 = concatenate([Conv2DTranspose(feature_amount*4, (2, 2), strides=(2, 2), padding='same')(conv6), conv3], axis=3)
+        conv7 = Conv2D(feature_amount*4, (3, 3), activation='relu', padding='same')(up7)
+        conv7 = Conv2D(feature_amount*4, (3, 3), activation='relu', padding='same')(conv7)
 
-        up8 = concatenate([Conv2DTranspose(64, (2, 2), strides=(2, 2), padding='same')(conv7), conv2], axis=3)
-        conv8 = Conv2D(64, (3, 3), activation='relu', padding='same')(up8)
-        conv8 = Conv2D(64, (3, 3), activation='relu', padding='same')(conv8)
+        up8 = concatenate([Conv2DTranspose(feature_amount*2, (2, 2), strides=(2, 2), padding='same')(conv7), conv2], axis=3)
+        conv8 = Conv2D(feature_amount*2, (3, 3), activation='relu', padding='same')(up8)
+        conv8 = Conv2D(feature_amount*2, (3, 3), activation='relu', padding='same')(conv8)
 
-        up9 = concatenate([Conv2DTranspose(32, (2, 2), strides=(2, 2), padding='same')(conv8), conv1], axis=3)
-        conv9 = Conv2D(32, (3, 3), activation='relu', padding='same')(up9)
-        conv9 = Conv2D(32, (3, 3), activation='relu', padding='same')(conv9)
+        up9 = concatenate([Conv2DTranspose(feature_amount, (2, 2), strides=(2, 2), padding='same')(conv8), conv1], axis=3)
+        conv9 = Conv2D(feature_amount, (3, 3), activation='relu', padding='same')(up9)
+        conv9 = Conv2D(feature_amount, (3, 3), activation='relu', padding='same')(conv9)
 
         conv10 = Conv2D(1, (1, 1), activation='sigmoid')(conv9)
 
@@ -456,33 +463,33 @@ class myUnet(object):
         imgs_train, imgs_mask_train, imgs_test = self.load_data()
         print("... done.")
         global _tensor_in, _test_shape
-        _tensor_in = imgs_train.shape
+        _tensor_in  = imgs_train.shape
         _test_shape = imgs_test.shape
 
         print("Getting model...")
         load_prev_model = which_model
-        if load_prev_model == 0:
+        if load_prev_model == "loadhdf5":
             model = load_model('unet.hdf5', custom_objects={'dice_coef_loss': dice_coef_loss})
             print("Loaded model from hdf5.")
 
-        elif load_prev_model == 1:
+        elif load_prev_model == "unet_orig":
             model = self.get_unet()
             print("Created orig. Unet.")
 
-        elif load_prev_model == 2:
+        elif load_prev_model == "shallow_orig_unet":
             model = self.get_unet2()
-            print("Created smaller Unet.")
+            print("Created orig but less deep Unet.")
 
-        elif load_prev_model == 3:
+        elif load_prev_model == "diff_opt_loss_unet":
             #imgs_mask_train = core.Reshape((2, self.img_rows*self.img_cols))(imgs_mask_train)
             #imgs_mask_train = core.Permute((2,1))(imgs_mask_train)
             model = self.get_unet3()
             print("Created Unet3.")
 
-        elif load_prev_model == 4:
+        elif load_prev_model == "keras1_unet":
             model = self.get_unet_hao()
             print("Created Unet_hao.")
-        elif load_prev_model == 5:
+        elif load_prev_model == "ultra":
             model = self.get_unet_ultra()
             print("Created Unet Ultrasound.")
         
@@ -585,30 +592,26 @@ class myUnet(object):
             img.save("./results/%d.tif" % (i))
 
     def save_model_info(self):
-        file = open("./results/model_info.txt","w")
+        file = open("./results/model_info.txt","a")
         file.write("epochs: " + str(_epochs) + "\n")
         file.write("which_model: " + str(_which_model) + "\n")
         file.write("_batch_size: " + str(_batch_size) + "\n")
         file.write("_lr: " + str(_lr) + "\n")
         file.write("_tensor_in: " + str(_tensor_in) + "\n")
         file.write("_tensor_in: " + str(_tensor_in) + "\n")
+        file.write("_features_low: " + str(_features_low) + "\n")
+        file.write("_features_deep: " + str(_features_deep) + "\n")
         file.close()
+        print("Wrote model info file.")
 
 
 if __name__ == '__main__':
     myunet = myUnet()
-    #train(epochs, which_model, batch_size):
-    myunet.train(10, 5, 8)
+    myunet.train(_epochs, _which_model, _batch_size) #set vars at top of file.
     myunet.save_img()
-    save_model_info()
+    myunet.save_model_info()
 
     #for run_number in range(1,11):
     #    myunet.train(1, 0, 8) #0 = load from hdf5
     #    myunet.save_img()
     #    print("Go check output images." * 5 + "Epochs done: " + str(run_number+1))
-_epochs = 10
-_which_model = 5 # 5=ultra.
-_batch_size = 8
-_lr = 1e-06
-_tensor_in = "N/A"
-_test_shape = "N/A"
