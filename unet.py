@@ -3,7 +3,7 @@ import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 import numpy as np
 from keras.models import *
-from keras.layers import Input, merge, concatenate, Conv2D, MaxPooling2D, UpSampling2D, Dropout, Cropping2D, core
+from keras.layers import Input, merge, concatenate, Conv2D, MaxPooling2D, UpSampling2D, Dropout, Cropping2D, core, Conv2DTranspose
 from keras.optimizers import *
 from keras.callbacks import ModelCheckpoint, LearningRateScheduler
 from keras import backend as K
@@ -11,6 +11,14 @@ from data import *
 #from opt import *
 from losses import *
 from keras.models import load_model
+
+# Global vars for easy access and who cares about programming principles.
+_epochs = 10
+_which_model = 5 # 5=ultra.
+_batch_size = 8
+_lr = 1e-06
+_tensor_in = "N/A"
+_test_shape = "N/A"
 
 
 class myUnet(object):
@@ -396,7 +404,7 @@ class myUnet(object):
 
     def get_unet_ultra(self):
         # https://github.com/jocicmarko/ultrasound-nerve-segmentation/blob/master/train.py
-        inputs = Input((img_rows, img_cols, 1))
+        inputs = Input((self.img_rows, self.img_cols, 1))
         conv1 = Conv2D(32, (3, 3), activation='relu', padding='same')(inputs)
         conv1 = Conv2D(32, (3, 3), activation='relu', padding='same')(conv1)
         pool1 = MaxPooling2D(pool_size=(2, 2))(conv1)
@@ -435,8 +443,9 @@ class myUnet(object):
         conv10 = Conv2D(1, (1, 1), activation='sigmoid')(conv9)
 
         model = Model(inputs=[inputs], outputs=[conv10])
-
-        model.compile(optimizer=Adam(lr=1e-5), loss=dice_coef_loss, metrics=[dice_coef])
+        lr = _lr
+        print("Learning Rate: " + str(lr))
+        model.compile(optimizer=Adam(lr=lr), loss=dice_coef_loss, metrics=[dice_coef])
 
         return model
 
@@ -446,7 +455,10 @@ class myUnet(object):
         print("Loading data for training and testing...")#, end="")
         imgs_train, imgs_mask_train, imgs_test = self.load_data()
         print("... done.")
-        
+        global _tensor_in, _test_shape
+        _tensor_in = imgs_train.shape
+        _test_shape = imgs_test.shape
+
         print("Getting model...")
         load_prev_model = which_model
         if load_prev_model == 0:
@@ -516,8 +528,8 @@ class myUnet(object):
 
             # END DATA AUGMENTATION SADFACE.
 
-        epochs = epochs
-        batch_size = batch_size
+        epochs = _epochs
+        batch_size = _batch_size
         #augment git gen function instead of fit
         if augment==True:
             model.fit_generator(train_generator,
@@ -534,8 +546,8 @@ class myUnet(object):
                       epochs=epochs, 
                       verbose=1, 
                       validation_split=0.1, 
-                      shuffle=True)#, 
-                    #callbacks=[model_checkpoint])#,
+                      shuffle=True, 
+                      callbacks=[model_checkpoint])#,
                 #sample_weight = class_weights)
                     #, class_weight = {0:1, 1:100}
 
@@ -572,14 +584,31 @@ class myUnet(object):
             #print(img.size)
             img.save("./results/%d.tif" % (i))
 
+    def save_model_info(self):
+        file = open("./results/model_info.txt","w")
+        file.write("epochs: " + str(_epochs) + "\n")
+        file.write("which_model: " + str(_which_model) + "\n")
+        file.write("_batch_size: " + str(_batch_size) + "\n")
+        file.write("_lr: " + str(_lr) + "\n")
+        file.write("_tensor_in: " + str(_tensor_in) + "\n")
+        file.write("_tensor_in: " + str(_tensor_in) + "\n")
+        file.close()
+
 
 if __name__ == '__main__':
     myunet = myUnet()
-    #def train(self, epochs, which_model, batch_size):
-    myunet.train(15, 4, 8)
+    #train(epochs, which_model, batch_size):
+    myunet.train(10, 5, 8)
     myunet.save_img()
+    save_model_info()
 
     #for run_number in range(1,11):
     #    myunet.train(1, 0, 8) #0 = load from hdf5
     #    myunet.save_img()
     #    print("Go check output images." * 5 + "Epochs done: " + str(run_number+1))
+_epochs = 10
+_which_model = 5 # 5=ultra.
+_batch_size = 8
+_lr = 1e-06
+_tensor_in = "N/A"
+_test_shape = "N/A"

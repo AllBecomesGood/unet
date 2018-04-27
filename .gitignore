@@ -8,3 +8,4 @@ npydata/*
 !npydata/info
 /__pycache__/*
 augment/*
+resultsKeras2_ultraUnet_32-512_AugFlipRota_5epo_LR1e-6/*

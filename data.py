@@ -38,6 +38,7 @@ class dataProcess(object):
 		augmentation = True
 		flipping = True
 		rota15 = True
+		flip_rota = True
 
 		i = 0
 		# Load the images.
@@ -59,6 +60,9 @@ class dataProcess(object):
 			if flipping == True:
 				numOfImagesTotal += numOfImagesTotalBase * 3 # 1*updown, 1*leftright, and then combination of both so 1 more set. 3 overall.
 				print("Flipping increased num of total images to: " + str(numOfImagesTotal))
+			if flip_rota == True:
+				numOfImagesTotal += numOfImagesTotalBase * 2 # LR flip pos and neg rota -> 2 more.
+				print("flip_rota increased num of total images to: " + str(numOfImagesTotal))
 
 		# Create empty placeholder numpy array. (dim here: 30,512,512,1)
 		imgdatas = np.ndarray((numOfImagesTotal,self.out_rows,self.out_cols, 1), dtype=np.float32) 
@@ -225,7 +229,18 @@ class dataProcess(object):
 						imgdatas[i]  = img_to_array( image_numpy_rotated_minus[:,:,x] )
 						imglabels[i] = img_to_array( mask_numpy_rotated_minus[:,:,x] )
 						i += 1
-
+					if flip_rota == True: #TODO only this so far
+						# Left Right Flip the rotated imgs.
+						flip_rota_pos_img  = img_to_array( np.fliplr(image_numpy_rotated_positive[:,:,x]) )
+						flip_rota_pos_mask = img_to_array( np.fliplr(mask_numpy_rotated_positive[:,:,x]) )
+						flip_rota_minus_img  = img_to_array( np.fliplr(image_numpy_rotated_minus[:,:,x]) )
+						flip_rota_minus_mask = img_to_array( np.fliplr(mask_numpy_rotated_minus[:,:,x]) )
+						imgdatas[i]  = flip_rota_pos_img
+						imglabels[i] = flip_rota_pos_mask
+						i += 1
+						imgdatas[i]  = flip_rota_minus_img
+						imglabels[i] = flip_rota_minus_mask
+						i += 1
 
 
 				_, _, channel = img_train.shape
