@@ -189,7 +189,7 @@ class myUnet(object):
         # convmid = Convolution2D(512, 3, 3, activation='relu', border_mode='same')(upmid)
         # convmid = Convolution2D(512, 3, 3, activation='relu', border_mode='same')(convmid)
 
-        up6 = merge([Convolution2D(256, 2, 2, activation='relu', border_mode='same')(UpSampling2D(size=(2, 2))(conv5)), conv4], mode='concat', concat_axis=3)
+        up6 = merge( [Convolution2D(256, 2, 2, activation='relu', border_mode='same')(UpSampling2D(size=(2, 2))(conv5)) ,conv4] , mode='concat', concat_axis=3)
         conv6 = Convolution2D(256, 3, 3, activation='relu', border_mode='same')(up6)
         # conv6 = BatchNormalization(mode=2, axis=3)(conv6)
         conv6 = Convolution2D(256, 3, 3, activation='relu', border_mode='same')(conv6)

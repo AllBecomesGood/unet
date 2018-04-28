@@ -1,10 +1,11 @@
 from keras.preprocessing.image import ImageDataGenerator, array_to_img, img_to_array, load_img
 import numpy as np
-import os
+import os, errno
 import glob
 from numpy import mean, std
 import nibabel
 from scipy.ndimage import rotate
+import shutil
 
 _augmentation = True
 _flipping = True
@@ -270,6 +271,7 @@ class dataProcess(object):
 
 		print('Loaded {0}/{1} images.'.format(i, numOfImagesTotal))
 
+		print("imgdatas.shape 7777" + str(imgdatas.shape))
 		np.save(self.npy_path + '/imgs_train.npy', imgdatas)
 		np.save(self.npy_path + '/imgs_mask_train.npy', imglabels)
 
@@ -336,6 +338,67 @@ class dataProcess(object):
 		print('-'*30)
 	
 
+	######
+	def create_test_data_nii_many(self):
+		"""
+		Loads .nii from './Tum18_19/test_nii/' folder and saves them as .npy files in './npydata/test_npy/' and names them NR_Diff_XX.npy
+		"""
+
+		parent_folder = './TumourData/test_nii/'
+		patient_folders = os.listdir(parent_folder)
+		print("patient_folders should be 2 (59 and 60): " + str(patient_folders)) # ['NR_Diff_34', 'NR_Diff_60', ...
+
+		for patient_folder in patient_folders:
+		    print("333patient_folder: " + str(patient_folder)) # NR_Diff_34 etc
+		    
+		    # Now we create a numpy testfile for every single one individually?
+		    image_nii = nibabel.load(parent_folder + patient_folder + '/' + 'flair_noskull.nii.gz')
+		    #print(image_nii.shape) # (276, 320, 41)   not always 41, but same order
+		    
+		    # Preallocate numpy array where mask will be held in.
+		    _, _, slices = image_nii.shape
+		    imgdatas = np.ndarray((slices, 256,256, 1), dtype=np.float32)
+		    
+		    # Turn into numpy data format.
+		    image_numpy = image_nii.get_data()
+		    #print(image_numpy.shape) # (276, 320, 41)
+		    
+		    # Crop into 256*256.
+		    a1, b1, c1 = image_numpy.shape
+		    #print("=== === Img Shape before crop: " + str(image_numpy.shape)) #(276, 320, 41)
+		    half_excess_a1 = int( (a1 - 256) / 2 )
+		    half_excess_b1 = int( (b1 - 256) / 2 )
+		    image_numpy = image_numpy[0+half_excess_a1:a1-half_excess_a1,
+		                              0+half_excess_b1:b1-half_excess_b1,
+		                              :] #not a smiley.
+		    #print("=== === Img Shape after crop:  " + str(image_numpy.shape)) #(256, 256, 41)
+		    
+		    # Zero-mean and unit standard deviation.
+		    image_numpy = (image_numpy - mean(image_numpy)) / std(image_numpy)
+		    
+		    # Add entire stack into list.
+		    for x in range(0, c1):
+		        #When slicing with [:,:,x] we lose the third dimension.
+		        imgdatas[x] = img_to_array(image_numpy[:,:,x])
+		        
+		    print(imgdatas.shape) # (41, 256, 256, 1)
+		    
+		    # Create folder if not already exists.
+		    try:
+		        print("Making folder...")
+		        os.makedirs('./npydata/test_npy/')
+		    except OSError as e:
+		        #print("... folder already exists or other error.")
+		        if e.errno != errno.EEXIST:
+		            raise
+		    
+		    # Save to .np file.
+		    print("WHAT IS HAPPENING")
+		    print('./npydata/test_npy/' + str(patient_folder) + '.npy')
+		    np.save('./npydata/test_npy/' + patient_folder + '.npy', imgdatas)
+	######
+
+
 	def load_train_data(self):
 		print('-'*30)
 		print('Loading training images and masks...')
@@ -387,6 +450,50 @@ class dataProcess(object):
 		file.write("_flip_rota: " + str(_flip_rota) + "\n")
 		file.close()
 		print("Wrote data model info file.")
+
+	###
+	def prep_result_folder(self):
+		try:
+		    print("Making folder: ./results/")
+		    os.makedirs('./results/')
+		except OSError as e:
+		    #print("... folder already exists or other error.")
+		    if e.errno != errno.EEXIST:
+		        raise
+
+		shutil.rmtree('./results')
+
+		# Remake ./results
+		# Make folder?
+		try:
+		    print("Making folder: ./results/")
+		    os.makedirs('./results/')
+		except OSError as e:
+		    #print("... folder already exists or other error.")
+		    if e.errno != errno.EEXIST:
+		        raise
+
+		
+		try:
+		    print("Making folder: ./npydata/test_npy/")
+		    os.makedirs('./npydata/test_npy/')
+		except OSError as e:
+		    #print("... folder already exists or other error.")
+		    if e.errno != errno.EEXIST:
+		        raise
+
+		shutil.rmtree('./npydata/test_npy/')
+
+		# Remake ./results
+		# Make folder?
+		try:
+		    print("Making folder: ./npydata/test_npy//")
+		    os.makedirs('./npydata/test_npy/')
+		except OSError as e:
+		    #print("... folder already exists or other error.")
+		    if e.errno != errno.EEXIST:
+		        raise
+    ###
 # End dataProcess class.
 
 
@@ -397,10 +504,17 @@ if __name__ == "__main__":
 	dim1 = 256
 	dim2 = 256
 	mydata = dataProcess(dim1,dim2)
+	mydata.prep_result_folder()
 	print("Calling function .create_train_data()")
 	mydata.create_train_data_nii()
-	print("Calling function .create_test_data()")
-	mydata.create_test_data_nii()
+	#print("Calling function .create_test_data()")
+	#mydata.create_test_data_nii()
+
+	print("PLEASE WORK")
+	mydata.create_test_data_nii_many()
+
+	
+
 	mydata.save_model_info_data(dim1, dim2)
 	print('='*30)
 	print("\n")

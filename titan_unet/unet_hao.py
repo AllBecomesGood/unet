@@ -11,17 +11,20 @@ from data import *
 from losses import *
 from keras.models import load_model
 import nibabel
+import shutil
+
 
 # Global vars for easy access and who cares about programming principles.
-_epochs = 5
+_epochs = 10
 _which_model = "Keras1_32-512" #ultra. #loadhdf5 #unet_orig #shallow_orig_unet #diff_opt_loss_unet #keras1_unet
-_batch_size = 32
+_batch_size = 8
 _lr = 1e-04
 _tensor_in = "N/A"
 _test_shape = "N/A"
 _features_low = "N/A"
 _features_deep = "N/A"
-_load = 0
+_load = 0 
+#0 is new, else is load
 
 _nii_test_img = None
 _nii_test_mask = None
@@ -171,8 +174,6 @@ class myUnet(object):
         #class_weights[:, 0] += 0.05
         #class_weights[:, 1] += 0.95
 
-        
-
         model.fit(imgs_train, 
                 imgs_mask_train, 
                 batch_size=batch, 
@@ -181,34 +182,166 @@ class myUnet(object):
                 validation_split=0.1, 
                 shuffle=True,
                 callbacks=[model_checkpoint])#,
-                #sample_weight = class_weights)
+                #sample_weight = class_weights) # No idea how to make these work currently.
+                #, class_weight = {0:1, 1:100}
 
-                    #, class_weight = {0:1, 1:100}
+        #print('predict test data')
+        #imgs_mask_test = model.predict(imgs_test, batch_size=1, verbose=1)
+        #np.save('./results/imgs_mask_test.npy', imgs_mask_test)
+        return model
 
-        print('predict test data')
-        imgs_mask_test = model.predict(imgs_test, batch_size=1, verbose=1)
+    ###
+    def pred_save_test_datas(self, model):
+        model.load_weights('unet.hdf5')
+        print('Predicting multiple test data...')
 
+        # Must fetch data from './npydata/test_npy/'
 
-        if np.max(np.array(imgs_mask_test))==0.0:
-            print(" ==============================")
-            print("==== Mask prediction empty. ====")
-            print(" ==============================")
+        # Make sure folder exists where we want to save.
+        try:
+            print("Making folder: ./results/mask_pred_npys/")
+            os.makedirs('./results/mask_pred_npys/')
+        except OSError as e:
+            #print("... folder already exists or other error.")
+            if e.errno != errno.EEXIST:
+                raise
+
+        # Make sure folder exists where we want to save.
+        try:
+            print("Making folder: ./npydata/test_npy/")
+            os.makedirs('./npydata/test_npy/')
+        except OSError as e:
+            #print("... folder already exists or other error.")
+            if e.errno != errno.EEXIST:
+                raise
+
+        # Set where the test data is saved.
+        parent_folder = './npydata/test_npy/'
+        test_files = os.listdir(parent_folder)
+        print(test_files) #['NR_Diff_45.npy', 'NR_Diff_34.npy', etc
+
+        # Get every mri scan to be tested. (it's .npy files now)
+        print("3445")
+        for test_file in test_files:
+            print("test_file" + str(test_file)) #NR_Diff_59.npy
+            # Load a file at a time.
+            img_test = np.load(parent_folder + test_file)
+            #print(img_test.shape) # (39, 256, 256, 1)
+            
+            # Set to float32.
+            img_test = img_test.astype('float32')
+
+            # Do prediction.
+            print("Predicting file: " + str(test_file))
+            test_mask_prediction = model.predict(img_test, batch_size=1, verbose=1)
+
+            # Save predicted mask.
+            np.save('./results/mask_pred_npys/' + test_file, test_mask_prediction) #TODO
+    ###
+
+    ###
+    def save_all_predictions_as_nii(self):
+        print("Saving predictions to /results/ folder.")
         
-        np.save('./results/imgs_mask_test.npy', imgs_mask_test)
+        # All the prediction masks .npy files are in: './results/mask_pred_npys/' e.g. NR_Diff_02.npy
+
+        # Make sure folder exists where we want to save.
+        try:
+            print("Making folder: ./results/images/")
+            os.makedirs('./results/images/')
+        except OSError as e:
+            #print("... folder already exists or other error.")
+            if e.errno != errno.EEXIST:
+                raise
+
+        # Set where to load the prediction .npy files from.
+        parent_folder = './results/mask_pred_npys/'
+        pred_files = os.listdir(parent_folder)
+
+        # Go through all files which are a stack each.
+        for pred_file in pred_files:
+            #print(pred_file) # NR_Diff_45.npy
+            # Load the predicted mask .npy file. One STACK at a time.
+            pred_mask = np.load(parent_folder + pred_file) # shape: 41, 256, 256
+
+            #nr_diff_xx = os.rename(pred_file, pred_file.replace('.npy', '')) # for existing folder, not variable
+            nr_diff_xx = pred_file.replace('.npy', '')
+
+            # Make sure folder exists where we want to save.
+            try:
+                print("Making folder: ./results/images/" + nr_diff_xx + "/")
+                os.makedirs('./results/images/' + nr_diff_xx + '/')
+            except OSError as e:
+                #print("... folder already exists or other error.")
+                if e.errno != errno.EEXIST:
+                    raise
+            
+            # Loop through the stack.
+            for i in range(pred_mask.shape[0]):
+                # Get 1 img from stack at a time.
+                img = pred_mask[i]
+                # Threshhold to 0 and 1.
+                img[img >= 0.5] = 1
+                img[img < 0.5] = 0
+                # Turn into image 2D.
+                img = array_to_img(img)
+                img.save("./results/images/" + nr_diff_xx + "/%d.tif" % (i))
+
+            # Now turn into .nii, resize (pad to 276*320) and add correct header and affine.
+            # Original .nii files are in './TumourData/test_nii/NR_Diff_XX/' and here the nii.gz
+            
+            #pred_file  is NR_Diff_45.npy   # This is a stack.
+            #nr_diff_xx is NR_Diff_45
+
+            # Let's load original to steal .header and .affine from the .nii file. They are in ./TumourData/test_nii/NR_Diff_XX/FLAIR_mask.nii.gz
+            mask_nii = nibabel.load('./TumourData/test_nii/' + nr_diff_xx + '/' + 'FLAIR_mask.nii.gz')
+            hdr = mask_nii.header
+            aff = mask_nii.affine
+
+            # Pad the numpyarray pred_mask back into xx*276*320 (currently xx*256*256). 
+            print("pred_mask.shape before slice: " + str(pred_mask.shape))
+            pred_mask = pred_mask[:,:,:,0]
+            print("pred_mask.shape before pad: " + str(pred_mask.shape))
+            pred_mask = np.pad(pred_mask, ((0,0),(10,10),(32,32)), 'constant')
+            print("pred_mask.shape after pad: " + str(pred_mask.shape))
+
+
+            # Transpose numpy array from channel first into channel last. ###np.transpose(aa, (1,2,0)) # from (41, 256, 256) to (256, 256, 41)
+            pred_mask = np.transpose(pred_mask, (1,2,0))
+
+            # Make folder?
+            try:
+                print("Making folder: ./results/nii_masks/")
+                os.makedirs('./results/nii_masks/')
+            except OSError as e:
+                #print("... folder already exists or other error.")
+                if e.errno != errno.EEXIST:
+                    raise
+            
+            # Threshold to 1 and 0.
+            pred_mask[pred_mask >= 0.5] = 1
+            pred_mask[pred_mask < 0.5] = 0
+            # Save as .nii
+            niimask_new = nibabel.Nifti1Image(pred_mask, affine=aff, header=hdr)
+            nibabel.save(niimask_new, './results/nii_masks/' + nr_diff_xx + '_Unet.nii.gz') 
+
+    ###
 
     def save_img(self):
 
         print("Saving predictions to /results/ folder.")
         mask_preds = np.load('./results/imgs_mask_test.npy')
 
-        mask_preds[mask_preds >= 0.5] = 1
-        mask_preds[mask_preds < 0.5] = 0
+        #mask_preds[mask_preds >= 0.5] = 1
+        #mask_preds[mask_preds < 0.5] = 0
 
         print("test result Max: " + str(np.max(np.array(mask_preds))))
         print("test result Min: " + str(np.min(np.array(mask_preds))))
         for i in range(mask_preds.shape[0]):
             img = mask_preds[i]
-            #if i == 30:
+            img[img >= 0.5] = 1
+            img[img < 0.5] = 0
+    	    #if i == 30:
                 #print("img in unet.py Max: " + str(np.max(np.array(img))))
                 #print("img in unet.py Min: " + str(np.min(np.array(img))))
                 #print(img.shape)
@@ -216,7 +349,9 @@ class myUnet(object):
                 print("NANI?")
 
             img = array_to_img(img)
-            #print(img.size)
+            #img[img >= 0.5] = 1
+	    #img[img < 0.5] = 0 doesnt work
+	    #print(img.size)
             img.save("./results/%d.tif" % (i))
 
         # Turn into nifti1 and resize to 256, update header info and save.
@@ -232,10 +367,12 @@ class myUnet(object):
             print(mask_preds.shape) #41, 256, 256
             mask_preds = mask_preds[:,:,:,0]
             print(mask_preds.shape)
-            #mask_preds1 = np.transpose(mask_preds, (2,0,1))
+            #mask_preds2 = np.transpose(mask_preds, (2,0,1))
             mask_preds2 = np.transpose(mask_preds, (1,2,0)) # swapping axes does weird things.
+            #mask_preds2 = np.swapaxes(mask_preds, 0, 2)
+            #mask_preds2 = np.rollaxis(mask_preds, 2,0)
             print("mask_preds.shape: " + str(mask_preds.shape) + " must equal order mask_nii.shape: " + str(mask_nii.shape))
-            print("mask_preds1.shape: " + str(mask_preds1.shape) + " must equal order mask_nii.shape: " + str(mask_nii.shape))
+            #print("mask_preds1.shape: " + str(mask_preds1.shape) + " must equal order mask_nii.shape: " + str(mask_nii.shape))
             print("mask_preds2.shape: " + str(mask_preds2.shape) + " must equal order mask_nii.shape: " + str(mask_nii.shape))
 
             # Adjust headers to 256*256 dimension.
@@ -273,17 +410,31 @@ class myUnet(object):
             nii_img_new = nibabel.Nifti1Image(image_numpy, affine=image_nii.affine, header=image_nii_header)
             nibabel.save(nii_img_new, './results/' + patient_folder + '/flair_noskull_256_Unet.nii.gz')
 
-            # mask_preds2[mask_preds2 >= 0.5] = 1
-            # mask_preds2[mask_preds2 < 0.5] = 0
-            #niimask_new1 = nibabel.Nifti1Image(mask_preds, affine=mask_nii.affine, header=mask_nii_header)
-            #nibabel.save(niimask_new1, './results/' + patient_folder + '/FLAIR_mask_256_Unet000.nii.gz') 
-            #niimask_new2 = nibabel.Nifti1Image(mask_preds1, affine=mask_nii.affine, header=mask_nii_header)
-            #nibabel.save(niimask_new2, './results/' + patient_folder + '/FLAIR_mask_256_Unet111.nii.gz')
+            mask_preds2[mask_preds2 >= 0.5] = 1
+            mask_preds2[mask_preds2 < 0.5] = 0
+            niimask_new1 = nibabel.Nifti1Image(mask_preds2, affine=image_nii.affine, header=image_nii_header)
+            nibabel.save(niimask_new1, './results/' + patient_folder + '/FLAIR_mask_256_Unet000.nii.gz') 
+            niimask_new2 = nibabel.Nifti1Image(mask_preds2, affine=image_nii.affine, header=mask_nii_header)
+            nibabel.save(niimask_new2, './results/' + patient_folder + '/FLAIR_mask_256_Unet111.nii.gz')
             niimask_new3 = nibabel.Nifti1Image(mask_preds2, affine=mask_nii.affine, header=mask_nii_header)
             nibabel.save(niimask_new3, './results/' + patient_folder + '/FLAIR_mask_256_Unet222.nii.gz') 
 
             
 
+
+    ###
+    def prep_result_folder(self):
+        shutil.rmtree('./results')
+        # Remake ./results
+        # Make folder?
+        try:
+            print("Making folder: ./results/")
+            os.makedirs('./results/')
+        except OSError as e:
+            #print("... folder already exists or other error.")
+            if e.errno != errno.EEXIST:
+                raise
+    ###
 
     def save_model_info(self):
         file = open("./results/model_info.txt","w")
@@ -300,6 +451,10 @@ class myUnet(object):
 
 if __name__ == '__main__':
     myunet = myUnet()
-    myunet.train()
-    myunet.save_img()
+    model = myunet.train()
+    #myunet.prep_result_folder() # deletes existing results folder and remakes it empty
+    myunet.pred_save_test_datas(model) # predicts multiple test datas and saves them as npy
+    myunet.save_all_predictions_as_nii()
+    #myunet.save_img() # Saves only 1 npy file.
     myunet.save_model_info()
+    print("Last Thing unet_hao.py prints. The End.")
